@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""
+NexusOSINT Executable Entry Point
+Direct execution: ./nexusosint <command> <target> [options]
+"""
+
+import os
+import sys
+
+# Ensure current directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from nexus_osint.cli import main
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n[!] Operation cancelled by user. Exiting NexusOSINT.\n")
+        sys.exit(0)

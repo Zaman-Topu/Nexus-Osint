@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Scan Output & Target Intelligence
+results/
+reports/
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Packaging & Build Artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
