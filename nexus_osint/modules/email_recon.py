@@ -109,8 +109,12 @@ def check_gravatar_profile(email: str, timeout: float = 6.0) -> Dict[str, Any]:
     return result
 
 
+from nexus_osint.modules.email_security import analyze_mail_security_posture
+from nexus_osint.modules.infostealer_recon import query_hudson_rock_email
+
+
 def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
-    """Execute comprehensive email reconnaissance."""
+    """Execute comprehensive email reconnaissance with mail authentication & infostealer auditing."""
     email = email.strip()
     print_section("Email Intelligence Scan", f"Target: {email}")
 
@@ -138,10 +142,9 @@ def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
     else:
         log_error(f"No MX records found for '{domain_part}'. Domain cannot receive emails!")
 
-    # SPF and DMARC check
-    txt_records = resolve_records(domain_part, "TXT")
-    spf_records = [r for r in txt_records if "v=spf1" in r]
-    dmarc_records = resolve_records(f"_dmarc.{domain_part}", "TXT")
+    # Mail Security Posture & Spoofability Audit
+    log_info(f"Auditing SPF/DMARC mail security posture & spoofability for '{domain_part}'...")
+    email_sec = analyze_mail_security_posture(domain_part)
 
     summary_info = {
         "Target Email": email,
@@ -150,10 +153,11 @@ def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
         "Domain Component": domain_part,
         "Is Disposable/Temp Mail": is_disposable,
         "Has Active MX Servers": has_mx,
-        "SPF Record Configured": bool(spf_records),
-        "DMARC Configured": bool(dmarc_records),
+        "SPF Record": email_sec["spf_qualifier"] if email_sec["has_spf"] else "Missing",
+        "DMARC Policy": email_sec["dmarc_policy"].upper() if email_sec["has_dmarc"] else "Missing",
+        "Spoofability Posture": email_sec["posture"],
     }
-    display_key_value_table("Email Overview", summary_info, border_style="cyan")
+    display_key_value_table("Email Overview & Spoofability", summary_info, border_style="cyan")
 
     if mx_records:
         display_key_value_table("Mail Servers (MX)", {f"Server #{i+1}": mx for i, mx in enumerate(mx_records)}, border_style="blue")
@@ -178,12 +182,42 @@ def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
     else:
         log_info("No public Gravatar profile or custom avatar registered.")
 
+    # Hudson Rock Cavalier Infostealer Intelligence
+    log_info("Querying Hudson Rock Cavalier infostealer database for malware breaches...")
+    infostealer_info = query_hudson_rock_email(email, timeout=timeout)
+
+    if infostealer_info.get("compromised"):
+        log_warning(
+            f"CRITICAL BREACH: Email compromised across [bold red]{infostealer_info['total_stealers']}[/bold red] "
+            f"infostealer infection(s) ({infostealer_info['total_corporate_services']} corporate credentials affected)!"
+        )
+        stealer_rows = []
+        for s in infostealer_info.get("stealers", [])[:5]:
+            logins = ", ".join(s.get("top_logins", [])[:2]) or "N/A"
+            stealer_rows.append([
+                s.get("computer_name", "Unknown"),
+                s.get("operating_system", "Unknown"),
+                s.get("date_compromised", "Unknown")[:10],
+                logins,
+            ])
+        if stealer_rows:
+            display_list_table(
+                "Infostealer Malware Compromises (Hudson Rock)",
+                ["Host Machine", "OS", "Compromised Date", "Sample Leaked Logins"],
+                stealer_rows,
+                border_style="red",
+            )
+    else:
+        log_success("No infostealer malware compromises reported for this email address.")
+
     return {
         "target": email,
         "valid_format": is_valid_format,
         "is_disposable": is_disposable,
         "mx_records": mx_records,
-        "spf_records": spf_records,
-        "dmarc_records": dmarc_records,
+        "spf_records": email_sec["spf_records"],
+        "dmarc_records": [email_sec["dmarc_record"]] if email_sec["dmarc_record"] else [],
+        "email_security": email_sec,
         "gravatar": gravatar_info,
+        "infostealer": infostealer_info,
     }

@@ -9,6 +9,7 @@ import socket
 from typing import Any, Dict, List
 import httpx
 
+from nexus_osint.resolver import resolve_records
 from nexus_osint.ui import (
     console,
     display_key_value_table,
@@ -22,13 +23,22 @@ from nexus_osint.ui import (
 
 
 def resolve_to_ip(target: str) -> str:
-    """Resolve a domain or host to an IP address if needed."""
+    """Resolve a domain or host to an IP address using Termux-safe DNS resolver."""
     clean = target.strip().replace("https://", "").replace("http://", "").split("/")[0].split(":")[0]
     try:
         ipaddress.ip_address(clean)
         return clean
     except ValueError:
-        return socket.gethostbyname(clean)
+        records = resolve_records(clean, "A")
+        if records:
+            return records[0]
+        records_v6 = resolve_records(clean, "AAAA")
+        if records_v6:
+            return records_v6[0]
+        try:
+            return socket.gethostbyname(clean)
+        except Exception as e:
+            raise ValueError(f"Could not resolve host '{clean}' to an IP address: {e}")
 
 
 def query_shodan_internetdb(ip: str, timeout: float = 6.0) -> Dict[str, Any]:

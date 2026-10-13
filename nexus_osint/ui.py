@@ -20,7 +20,7 @@ BANNER_ART = r"""
  [bold cyan]╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝[/]   [bold magenta]╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝   ╚═╝   [/]
 """
 
-TAGLINE = "[dim white]Advanced Modular Intelligence & Reconnaissance Framework | v1.0.0[/dim white]"
+TAGLINE = "[dim white]Advanced Modular Intelligence & Reconnaissance Framework | v2.0.0[/dim white]"
 
 
 def print_banner() -> None:

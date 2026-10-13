@@ -9,7 +9,7 @@ from typing import Any, Dict
 import httpx
 from rich.console import Console
 
-from nexus_osint.resolver import reverse_dns
+from nexus_osint.resolver import resolve_records, reverse_dns
 from nexus_osint.ui import (
     console,
     display_key_value_table,
@@ -31,8 +31,14 @@ def is_ip(target: str) -> bool:
 
 
 def resolve_domain_to_ip(domain: str) -> str:
-    """Resolve a domain name to its primary IPv4 address."""
+    """Resolve a domain name to its primary IPv4 address using Termux-safe DNS resolver."""
     clean = domain.replace("http://", "").replace("https://", "").split("/")[0].split(":")[0]
+    records = resolve_records(clean, "A")
+    if records:
+        return records[0]
+    records_v6 = resolve_records(clean, "AAAA")
+    if records_v6:
+        return records_v6[0]
     return socket.gethostbyname(clean)
 
 

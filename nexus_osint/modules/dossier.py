@@ -4,6 +4,7 @@ Autonomously chains intelligence modules based on an initial seed target
 (Email, Username, Domain, IP, or Phone) and generates a complete dossier with an interactive graph.
 """
 
+import os
 from typing import Any, Dict, List, Optional, Set
 from nexus_osint.case_manager import create_target_case_folder, print_case_banner, save_case_files
 from nexus_osint.exporter import export_to_json, export_to_markdown
@@ -11,6 +12,7 @@ from nexus_osint.graph_exporter import export_network_graph_html, generate_graph
 from nexus_osint.modules.cloud_recon import analyze_cloud_buckets
 from nexus_osint.modules.domain_recon import analyze_domain, clean_domain
 from nexus_osint.modules.email_recon import analyze_email, validate_email_format
+from nexus_osint.modules.exif_recon import analyze_image_exif
 from nexus_osint.modules.github_recon import analyze_github
 from nexus_osint.modules.ip_recon import analyze_ip, is_ip, resolve_domain_to_ip
 from nexus_osint.modules.passive_urls import analyze_passive_urls
@@ -66,13 +68,18 @@ class DossierGraphBuilder:
 def detect_target_type(target: str) -> str:
     """Classify the target string to determine initial reconnaissance vector."""
     target = target.strip()
+    image_extensions = (".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".webp", ".heic")
+    lower_target = target.lower()
+
+    if os.path.isfile(target) or any(lower_target.endswith(ext) for ext in image_extensions):
+        return "exif"
     if validate_email_format(target):
         return "email"
     if is_ip(target):
         return "ip"
     if target.startswith("+") or (target.isdigit() and len(target) >= 8):
         return "phone"
-    if "." in target and not target.startswith("@") and not " " in target:
+    if "." in target and not target.startswith("@") and " " not in target:
         return "domain"
     return "username"
 
@@ -105,6 +112,7 @@ def run_master_dossier(
         "cloud_recon": None,
         "passive_urls": None,
         "phone_recon": None,
+        "exif_recon": None,
     }
 
     graph = DossierGraphBuilder(target_seed)
@@ -120,6 +128,13 @@ def run_master_dossier(
         email_node = f"email_{target_seed}"
         graph.add_node(email_node, target_seed, color="#f97316")
         graph.add_edge("target_seed", email_node, "Identified Email")
+
+        # Infostealer breach node
+        if email_data.get("infostealer") and email_data["infostealer"].get("compromised"):
+            st_count = email_data["infostealer"].get("total_stealers", 0)
+            stealer_node = f"infostealer_{target_seed}"
+            graph.add_node(stealer_node, f"Infostealer: {st_count} Infection(s)", color="#dc2626", size=20, shape="diamond")
+            graph.add_edge(email_node, stealer_node, "Malware Breach")
 
         # Extract handles & domain
         user_part, _, domain_part = target_seed.partition("@")
@@ -244,6 +259,27 @@ def run_master_dossier(
             graph.add_node(s_node, sub["subdomain"], color="#a855f7", size=14)
             graph.add_edge(dom_node, s_node, "Subdomain")
 
+        # Infostealer node
+        if dom_data.get("infostealer") and dom_data["infostealer"].get("compromised"):
+            st_tot = dom_data["infostealer"].get("total", 0)
+            st_emp = dom_data["infostealer"].get("employees", 0)
+            stealer_node = f"infostealer_{clean_dom}"
+            graph.add_node(stealer_node, f"Breached ({st_emp} Staff / {st_tot} Total)", color="#dc2626", size=20, shape="diamond")
+            graph.add_edge(dom_node, stealer_node, "Infostealers")
+
+        # Takeover nodes
+        for to in dom_data.get("subdomain_takeovers", []):
+            if to.get("vulnerable"):
+                to_node = f"takeover_{to['subdomain']}"
+                graph.add_node(to_node, f"Takeover: {to['subdomain']}", color="#ef4444", size=18, shape="triangle")
+                graph.add_edge(dom_node, to_node, "Dangling CNAME")
+
+        # Web tech stack nodes
+        for tech in dom_data.get("tech_stack", [])[:5]:
+            tech_node = f"tech_{clean_dom}_{tech}"
+            graph.add_node(tech_node, tech, color="#6366f1", size=13)
+            graph.add_edge(dom_node, tech_node, "Tech Stack")
+
         # 2. Resolve IP & Shodan
         try:
             resolved_ip = resolve_domain_to_ip(clean_dom)
@@ -337,6 +373,36 @@ def run_master_dossier(
         phone_node = f"phone_{target_seed}"
         graph.add_node(phone_node, target_seed, color="#10b981", size=22)
         graph.add_edge("target_seed", phone_node, "Phone")
+
+    # -------------------------------------------------------------
+    # VECTOR: EXIF / IMAGE FORENSICS
+    # -------------------------------------------------------------
+    elif target_type == "exif":
+        log_info(f"Phase 1: Extracting EXIF & Forensics metadata from image: {target_seed}...")
+        exif_data = analyze_image_exif(target_seed)
+        dossier["exif_recon"] = exif_data
+
+        exif_node = f"image_{target_seed}"
+        graph.add_node(exif_node, f"Image: {os.path.basename(target_seed)}", color="#ec4899", size=22)
+        graph.add_edge("target_seed", exif_node, "Image Target")
+
+        hw = exif_data.get("hardware") or {}
+        if hw:
+            make = str(hw.get("Camera Make", "")).replace("N/A", "").strip()
+            model = str(hw.get("Camera Model", "")).replace("N/A", "").strip()
+            if make or model:
+                cam = f"{make} {model}".strip()
+                cam_node = f"cam_{cam}"
+                graph.add_node(cam_node, f"Camera: {cam}", color="#8b5cf6", size=16)
+                graph.add_edge(exif_node, cam_node, "Device Model")
+
+        gps = exif_data.get("gps")
+        if gps:
+            lat = gps.get("Latitude")
+            lon = gps.get("Longitude")
+            gps_node = f"gps_{lat}_{lon}"
+            graph.add_node(gps_node, f"GPS: {lat}, {lon}", color="#ef4444", size=18, shape="diamond")
+            graph.add_edge(exif_node, gps_node, "Coordinates")
 
     # -------------------------------------------------------------
     # AUTOMATED DEDICATED CASE FOLDER & EXPORTS

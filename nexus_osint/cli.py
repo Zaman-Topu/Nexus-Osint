@@ -27,6 +27,7 @@ from nexus_osint.modules.dossier import run_master_dossier
 from nexus_osint.modules.email_recon import analyze_email
 from nexus_osint.modules.exif_recon import analyze_image_exif
 from nexus_osint.modules.github_recon import analyze_github
+from nexus_osint.modules.infostealer_recon import query_hudson_rock_domain, query_hudson_rock_email
 from nexus_osint.modules.ip_recon import analyze_ip
 from nexus_osint.modules.passive_urls import analyze_passive_urls
 from nexus_osint.modules.phone_recon import analyze_phone
@@ -50,6 +51,7 @@ def run_and_save_scan(
     concurrency: int = 15,
     output_dir: Optional[str] = None,
     save_folder: bool = True,
+    region: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute a scan module and automatically create a dedicated case folder."""
     data: Dict[str, Any] = {}
@@ -77,7 +79,7 @@ def run_and_save_scan(
         data = analyze_email(target, timeout=timeout)
 
     elif mode_lower in ("phone", "tel"):
-        data = analyze_phone(target)
+        data = analyze_phone(target, region=region)
 
     elif mode_lower in ("github", "git"):
         data = analyze_github(target, timeout=timeout)
@@ -93,6 +95,12 @@ def run_and_save_scan(
 
     elif mode_lower in ("exif", "image", "gps"):
         data = analyze_image_exif(target, timeout=timeout)
+
+    elif mode_lower in ("stealer", "infostealer", "cavalier"):
+        if "@" in target:
+            data = query_hudson_rock_email(target, timeout=timeout)
+        else:
+            data = query_hudson_rock_domain(target, timeout=timeout)
 
     else:
         log_error(f"Unknown scan module: {scan_mode}")
@@ -257,7 +265,8 @@ Examples:
 
     # 6. 'phone' command
     p_phone = subparsers.add_parser("phone", aliases=["tel"], parents=[opts_parent], help="Phone carrier, country, and timezone intelligence")
-    p_phone.add_argument("target", help="Target phone number (e.g. +14155552671)")
+    p_phone.add_argument("target", help="Target phone number (e.g. +14155552671, +88018..., or 018...)")
+    p_phone.add_argument("-r", "--region", help="Default two-letter ISO country code (e.g. BD, US, GB)")
 
     # 7. 'github' command
     p_git = subparsers.add_parser("github", aliases=["git"], parents=[opts_parent], help="GitHub reconnaissance (commit emails & SSH keys)")
@@ -279,10 +288,14 @@ Examples:
     p_exif = subparsers.add_parser("exif", aliases=["image", "gps"], parents=[opts_parent], help="Image EXIF camera forensics & GPS coordinates")
     p_exif.add_argument("target", help="Local image file path or remote image URL")
 
-    # 12. 'cases' command
+    # 12. 'stealer' command
+    p_stealer = subparsers.add_parser("stealer", aliases=["infostealer", "cavalier"], parents=[opts_parent], help="Hudson Rock infostealer malware infection lookup (email or domain)")
+    p_stealer.add_argument("target", help="Target email address or corporate domain")
+
+    # 13. 'cases' command
     subparsers.add_parser("cases", aliases=["reports", "list"], parents=[opts_parent], help="Browse and inspect saved target case folders")
 
-    # 13. 'menu' command
+    # 14. 'menu' command
     subparsers.add_parser("menu", parents=[opts_parent], help="Launch interactive terminal menu")
 
     # TOP-LEVEL FLAG COMPATIBILITY (e.g. nexusosint -i 1.1.1.1, --dossier target, etc.)
@@ -294,6 +307,8 @@ Examples:
     parser.add_argument("--shodan", help="Shodan InternetDB port & CVE vulnerability scan")
     parser.add_argument("-e", "--email", help="Target email for verification & Gravatar pivot")
     parser.add_argument("-p", "--phone", help="Target phone number for carrier & location")
+    parser.add_argument("-r", "--region", help="Default two-letter ISO country code for phone scans (e.g. BD, US, GB)")
+    parser.add_argument("--stealer", help="Hudson Rock infostealer malware infection lookup (email or domain)")
     parser.add_argument("--cloud", help="Company keyword to hunt for exposed storage buckets")
     parser.add_argument("--urls", help="Target domain for historical URLs & passive secrets")
     parser.add_argument("--exif", help="Local image file path or image URL for EXIF & GPS")
@@ -320,6 +335,7 @@ def main():
     timeout = getattr(args, "timeout", 6.0)
     concurrency = getattr(args, "concurrency", 15)
     output_dir = getattr(args, "output_dir", None)
+    region = getattr(args, "region", None)
 
     # 1. Check Subcommand Execution (e.g. nexusosint all <target>, nexusosint ip <ip>, etc.)
     cmd = getattr(args, "command", None)
@@ -341,6 +357,7 @@ def main():
                 concurrency=concurrency,
                 output_dir=output_dir,
                 save_folder=save_folder,
+                region=region,
             )
             return
 
@@ -357,6 +374,7 @@ def main():
         ("cloud", args.cloud),
         ("urls", args.urls),
         ("exif", args.exif),
+        ("stealer", args.stealer),
     ]
 
     for mode, target_val in flag_scans:
@@ -368,6 +386,7 @@ def main():
                 concurrency=concurrency,
                 output_dir=output_dir,
                 save_folder=save_folder,
+                region=region,
             )
             return
 

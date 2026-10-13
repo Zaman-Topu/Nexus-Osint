@@ -83,11 +83,13 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             lines.append(f" • Reverse DNS     : {data.get('reverse_dns', geo.get('Reverse DNS', geo.get('reverse_dns', 'N/A')))}")
 
     elif mode_lower in ("user", "username"):
-        found = data.get("found_profiles", [])
-        lines.append(f" • User Handle     : {target}")
+        found = data.get("profiles") or data.get("found_profiles") or []
+        lines.append(f" • User Handle     : {data.get('username', target)}")
         lines.append(f" • Sites Detected  : {len(found)}")
         for p in found[:15]:
-            lines.append(f"    - [{p.get('site')}]: {p.get('url')}")
+            site_name = p.get("Platform") or p.get("site") or p.get("name", "Site")
+            site_url = p.get("Profile URL") or p.get("url", "N/A")
+            lines.append(f"    - [{site_name}]: {site_url}")
 
     elif mode_lower == "github":
         prof = data.get("profile", {})
@@ -102,7 +104,7 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             lines.append(f" • Public SSH Keys : {len(keys)} key(s) detected")
 
     elif mode_lower == "domain":
-        lines.append(f" • Target Domain   : {data.get('domain', target)}")
+        lines.append(f" • Target Domain   : {data.get('domain') or data.get('target', target)}")
         dns_recs = data.get("dns", {})
         if dns_recs:
             for rtype in ("A", "AAAA", "MX", "NS"):
@@ -112,28 +114,84 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
         subdomains = data.get("subdomains", [])
         if subdomains:
             lines.append(f" • Subdomains Found: {len(subdomains)}")
+        takeovers = data.get("subdomain_takeovers", [])
+        vuln_takeovers = [t for t in takeovers if t.get("vulnerable")]
+        if vuln_takeovers:
+            lines.append(f" • ⚠️ Takeover Risk : {len(vuln_takeovers)} vulnerable subdomain(s) detected!")
+        if data.get("email_security"):
+            mail_sec = data["email_security"]
+            lines.append(f" • Mail Security   : {mail_sec.get('posture', 'N/A')}")
+        if data.get("tech_stack"):
+            lines.append(f" • Web Tech Stack  : {', '.join(data['tech_stack'][:6])}")
+        if data.get("favicon") and data["favicon"].get("shodan_dork"):
+            lines.append(f" • Favicon Dork    : {data['favicon']['shodan_dork']}")
+        if data.get("infostealer") and data["infostealer"].get("compromised"):
+            lines.append(f" • ⚠️ Infostealers  : {data['infostealer'].get('total', 0)} corporate/user compromises!")
 
     elif mode_lower == "email":
-        lines.append(f" • Target Email    : {data.get('email', target)}")
-        lines.append(f" • Format Valid    : {data.get('format_valid')}")
-        lines.append(f" • Disposable/Temp : {data.get('disposable')}")
-        lines.append(f" • MX Mail Server  : {data.get('mx_present')}")
+        lines.append(f" • Target Email    : {data.get('target') or data.get('email', target)}")
+        is_fmt_valid = data.get("valid_format") if "valid_format" in data else data.get("format_valid")
+        lines.append(f" • Format Valid    : {'Yes' if is_fmt_valid else 'No'}")
+        is_disp = data.get("is_disposable") if "is_disposable" in data else data.get("disposable")
+        lines.append(f" • Disposable/Temp : {'Yes' if is_disp else 'No'}")
+        mx_val = data.get("mx_records") if "mx_records" in data else data.get("mx_present")
+        has_mx = bool(mx_val) if isinstance(mx_val, list) else bool(mx_val)
+        lines.append(f" • MX Mail Server  : {'Active' if has_mx else 'None'}")
         grav = data.get("gravatar", {})
         if grav.get("profile_found"):
-            lines.append(f" • Gravatar Identity: {grav.get('profile_url')}")
+            lines.append(f" • Gravatar Identity: {grav.get('profile_url', 'Found')}")
+        if data.get("email_security"):
+            lines.append(f" • Spoofability    : {data['email_security'].get('posture', 'N/A')}")
+        if data.get("infostealer") and data["infostealer"].get("compromised"):
+            lines.append(f" • ⚠️ Infostealers  : Compromised on {data['infostealer'].get('total_stealers', 0)} device(s)!")
 
     elif mode_lower == "phone":
-        lines.append(f" • Number (E.164)  : {data.get('e164', target)}")
-        lines.append(f" • Validation      : {'Valid' if data.get('valid') else 'Invalid'}")
-        lines.append(f" • Geographic Region: {data.get('country')}")
-        lines.append(f" • Operator/Carrier: {data.get('carrier')}")
-        lines.append(f" • Timezone        : {data.get('timezone')}")
+        details = data.get("details", {})
+        e164_val = data.get("e164") or details.get("E.164 Format") or target
+        is_valid_val = data.get("valid") if "valid" in data else details.get("Is Valid")
+        geo_val = data.get("country") or details.get("Geographic Region") or "N/A"
+        carrier_val = data.get("carrier") or details.get("Carrier / Operator") or "N/A"
+        tz_val = data.get("timezone") or details.get("Associated Timezones") or "N/A"
+        if isinstance(tz_val, list):
+            tz_val = ", ".join(tz_val)
+        lines.append(f" • Number (E.164)  : {e164_val}")
+        lines.append(f" • Validation      : {'Valid' if is_valid_val else 'Invalid'}")
+        lines.append(f" • Geographic Region: {geo_val}")
+        lines.append(f" • Operator/Carrier: {carrier_val}")
+        lines.append(f" • Timezone        : {tz_val}")
 
     elif mode_lower == "shodan":
         ports = data.get("ports", [])
-        cves = data.get("vulnerabilities", [])
+        cves = data.get("vulns") or data.get("vulnerabilities", [])
         lines.append(f" • Open Ports      : {', '.join(str(p) for p in ports) if ports else 'None reported'}")
         lines.append(f" • Vulnerabilities : {', '.join(cves) if cves else 'None reported'}")
+
+    elif mode_lower in ("exif", "image"):
+        lines.append(f" • Image Target    : {data.get('target', target)}")
+        lines.append(f" • EXIF Found      : {'Yes' if data.get('exif_found') else 'No'}")
+        hw = data.get("hardware", {})
+        if hw:
+            make = str(hw.get("Camera Make", "")).replace("N/A", "").strip()
+            model = str(hw.get("Camera Model", "")).replace("N/A", "").strip()
+            date = str(hw.get("Date/Time Original", "N/A"))
+            lines.append(f" • Camera Device   : {f'{make} {model}'.strip() or 'N/A'}")
+            lines.append(f" • Timestamp       : {date}")
+        gps = data.get("gps")
+        if gps:
+            lines.append(f" • Coordinates     : {gps.get('Latitude', 'N/A')}, {gps.get('Longitude', 'N/A')}")
+            lines.append(f" • Map Link        : {gps.get('Google Maps Link', 'N/A')}")
+
+    elif mode_lower in ("stealer", "infostealer", "cavalier"):
+        lines.append(f" • Target Seed     : {data.get('target', target)}")
+        lines.append(f" • Target Type     : {data.get('target_type', 'N/A').upper()}")
+        lines.append(f" • Compromised     : {'YES' if data.get('compromised') else 'NO'}")
+        if data.get("target_type") == "email":
+            lines.append(f" • Stealer Infections: {data.get('total_stealers', 0)}")
+            lines.append(f" • Corp Services   : {data.get('total_corporate_services', 0)}")
+        else:
+            lines.append(f" • Total Logins    : {data.get('total', 0)}")
+            lines.append(f" • Employee Logins : {data.get('employees', 0)}")
+            lines.append(f" • User Logins     : {data.get('users', 0)}")
 
     elif mode_lower in ("all", "dossier"):
         lines.append(f" • Seed Target     : {data.get('target_seed', target)}")

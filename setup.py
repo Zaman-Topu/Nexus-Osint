@@ -8,11 +8,11 @@ setup(
     packages=find_packages(),
     py_modules=["osint"],
     install_requires=[
-        "dnspython>=2.6.1",
-        "pillow>=10.3.0",
-        "phonenumbers>=8.13.38",
-        "requests>=2.31.0",
-        "rich>=13.7.1",
+        "dnspython>=2.6.0",
+        "exifread>=3.0.0",
+        "httpx>=0.27.0",
+        "phonenumbers>=8.13.0",
+        "rich>=13.0.0",
     ],
     entry_points={
         "console_scripts": [
