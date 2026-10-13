@@ -180,8 +180,68 @@ class TestPhase1DossierTargetType(unittest.TestCase):
         self.assertEqual(detect_target_type("192.168.1.1"), "ip")
         self.assertEqual(detect_target_type("+8801812345678"), "phone")
         self.assertEqual(detect_target_type("01812345678"), "phone")
+        self.assertEqual(detect_target_type("415-555-2671"), "phone")
+        self.assertEqual(detect_target_type("(415) 555-2671"), "phone")
+        self.assertEqual(detect_target_type("018-1234-5678"), "phone")
         self.assertEqual(detect_target_type("github.com"), "domain")
         self.assertEqual(detect_target_type("torvalds"), "username")
+
+    def test_master_dossier_summary_includes_module_findings(self):
+        """Ensure Master Dossier summary includes sub-module intelligence findings."""
+        dossier_data = {
+            "target_seed": "example.com",
+            "seed_type": "domain",
+            "domain_recon": {
+                "subdomains": [{"subdomain": "api.example.com", "ips": ["1.2.3.4"]}],
+                "subdomain_takeovers": [{"subdomain": "docs.example.com", "vulnerable": True}],
+                "email_security": {"posture": "SECURE: Strictly Protected"},
+                "tech_stack": ["Nginx", "React"],
+                "infostealer": {"compromised": True, "total": 12},
+            },
+            "shodan_recon": {
+                "ports": [80, 443, 8080],
+                "vulns": ["CVE-2023-1234"],
+            },
+            "cloud_recon": {
+                "buckets": [{"Provider": "AWS S3", "Bucket Name": "example-data", "Status": "200 OK"}],
+            },
+        }
+        summary = generate_summary_text("example.com", "all", dossier_data, "/tmp/case_test")
+        self.assertIn("Subdomains Found: 1", summary)
+        self.assertIn("Takeover Risks: 1 vulnerable", summary)
+        self.assertIn("Mail Security   : SECURE: Strictly Protected", summary)
+        self.assertIn("Web Tech Stack  : Nginx, React", summary)
+        self.assertIn("Infostealers  : 12 compromised credentials", summary)
+        self.assertIn("Open Ports      : 80, 443, 8080", summary)
+        self.assertIn("Critical CVEs : CVE-2023-1234", summary)
+        self.assertIn("Open Buckets  : 1 publicly exposed", summary)
+
+    def test_cloud_and_urls_summary_formatters(self):
+        """Ensure cloud and urls scan modes format dedicated findings in summary.txt."""
+        cloud_data = {
+            "target": "acme",
+            "total_discovered": 2,
+            "buckets": [
+                {"Provider": "AWS S3", "Bucket Name": "acme-assets", "Status": "200 OK"},
+                {"Provider": "Google Cloud", "Bucket Name": "acme-backup", "Status": "403 Forbidden"},
+            ],
+        }
+        cloud_summary = generate_summary_text("acme", "cloud", cloud_data, "/tmp/case_test")
+        self.assertIn("Total Found     : 2 storage bucket(s)", cloud_summary)
+        self.assertIn("Open Buckets  : 1 publicly accessible", cloud_summary)
+        self.assertIn("[AWS S3]: acme-assets (200 OK)", cloud_summary)
+
+        url_data = {
+            "domain": "target.com",
+            "total_found": 50,
+            "sensitive_findings": [
+                {"keywords": ".env, credentials", "url": "https://target.com/.env"},
+            ],
+        }
+        urls_summary = generate_summary_text("target.com", "urls", url_data, "/tmp/case_test")
+        self.assertIn("Total Harvested : 50 URL(s)", urls_summary)
+        self.assertIn("Sensitive URLs: 1 high-value", urls_summary)
+        self.assertIn("[.env, credentials]: https://target.com/.env", urls_summary)
 
 
 class TestPhase1ResolverIntegration(unittest.TestCase):
@@ -200,6 +260,14 @@ class TestPhase1ResolverIntegration(unittest.TestCase):
         ip = resolve_domain_to_ip("example.com")
         self.assertEqual(ip, "93.184.216.34")
         mock_resolve.assert_called_with("example.com", "A")
+
+    @patch("nexus_osint.modules.ip_recon.resolve_records")
+    @patch("socket.gethostbyname")
+    def test_ip_recon_unresolvable_raises_clean_value_error(self, mock_socket, mock_resolve):
+        mock_resolve.return_value = []
+        mock_socket.side_effect = Exception("Resolution failed")
+        with self.assertRaises(ValueError):
+            resolve_domain_to_ip("unresolvable-domain-xyz123.test")
 
 
 if __name__ == "__main__":

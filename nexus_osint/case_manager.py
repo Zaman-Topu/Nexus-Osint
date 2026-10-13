@@ -193,11 +193,93 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             lines.append(f" • Employee Logins : {data.get('employees', 0)}")
             lines.append(f" • User Logins     : {data.get('users', 0)}")
 
+    elif mode_lower in ("cloud", "buckets", "s3"):
+        lines.append(f" • Company Seed    : {data.get('target', target)}")
+        lines.append(f" • Total Found     : {data.get('total_discovered', 0)} storage bucket(s)")
+        buckets = data.get("buckets", [])
+        open_b = [b for b in buckets if "200" in b.get("Status", "")]
+        if open_b:
+            lines.append(f" • ⚠️ Open Buckets  : {len(open_b)} publicly accessible bucket(s)!")
+        for b in buckets[:5]:
+            lines.append(f"    - [{b.get('Provider')}]: {b.get('Bucket Name')} ({b.get('Status')})")
+
+    elif mode_lower in ("urls", "otx", "history"):
+        lines.append(f" • Target Domain   : {data.get('domain', target)}")
+        lines.append(f" • Total Harvested : {data.get('total_found', 0)} URL(s)")
+        sens = data.get("sensitive_findings", [])
+        if sens:
+            lines.append(f" • ⚠️ Sensitive URLs: {len(sens)} high-value endpoints detected!")
+            for s in sens[:5]:
+                lines.append(f"    - [{s.get('keywords')}]: {s.get('url')[:65]}")
+
     elif mode_lower in ("all", "dossier"):
         lines.append(f" • Seed Target     : {data.get('target_seed', target)}")
         lines.append(f" • Detected Vector : {data.get('seed_type', 'N/A').upper()}")
         completed = [k.replace('_recon', '').upper() for k, v in data.items() if k.endswith('_recon') and v is not None]
         lines.append(f" • Executed Vectors: {', '.join(completed)}")
+
+        # Include key findings from executed sub-modules
+        if data.get("domain_recon"):
+            d_data = data["domain_recon"]
+            subs = d_data.get("subdomains", [])
+            if subs:
+                lines.append(f" • Subdomains Found: {len(subs)}")
+            tos = [t for t in d_data.get("subdomain_takeovers", []) if t.get("vulnerable")]
+            if tos:
+                lines.append(f" • ⚠️ Takeover Risks: {len(tos)} vulnerable subdomain(s) detected!")
+            if d_data.get("email_security"):
+                lines.append(f" • Mail Security   : {d_data['email_security'].get('posture', 'N/A')}")
+            if d_data.get("tech_stack"):
+                lines.append(f" • Web Tech Stack  : {', '.join(d_data['tech_stack'][:6])}")
+            if d_data.get("infostealer") and d_data["infostealer"].get("compromised"):
+                lines.append(f" • ⚠️ Infostealers  : {d_data['infostealer'].get('total', 0)} compromised credentials!")
+
+        if data.get("email_recon"):
+            e_data = data["email_recon"]
+            if e_data.get("email_security"):
+                lines.append(f" • Email Spoofing  : {e_data['email_security'].get('posture', 'N/A')}")
+            if e_data.get("infostealer") and e_data["infostealer"].get("compromised"):
+                lines.append(f" • ⚠️ Infostealers  : Compromised on {e_data['infostealer'].get('total_stealers', 0)} device(s)!")
+            if e_data.get("gravatar", {}).get("profile_found"):
+                lines.append(f" • Gravatar Profile: {e_data['gravatar'].get('profile_url', 'Found')}")
+
+        if data.get("github_recon"):
+            g_data = data["github_recon"]
+            emails = g_data.get("discovered_emails", [])
+            if emails:
+                lines.append(f" • Leaked Commit Emails: {', '.join(emails[:3])}")
+
+        if data.get("shodan_recon"):
+            s_data = data["shodan_recon"]
+            ports = s_data.get("ports", [])
+            cves = s_data.get("vulns", [])
+            if ports:
+                lines.append(f" • Open Ports      : {', '.join(str(p) for p in ports[:6])}")
+            if cves:
+                lines.append(f" • ⚠️ Critical CVEs : {', '.join(cves[:4])}")
+
+        if data.get("cloud_recon"):
+            c_data = data["cloud_recon"]
+            open_b = [b for b in c_data.get("buckets", []) if "200" in b.get("Status", "")]
+            if open_b:
+                lines.append(f" • ⚠️ Open Buckets  : {len(open_b)} publicly exposed bucket(s)!")
+
+        if data.get("ip_recon"):
+            i_data = data["ip_recon"]
+            geo = i_data.get("geolocation", {})
+            if geo and isinstance(geo, dict):
+                country = geo.get("Country", "N/A")
+                city = geo.get("City", "N/A")
+                lines.append(f" • Host Geolocation: {city}, {country}")
+
+        if data.get("exif_recon"):
+            ex_data = data["exif_recon"]
+            if ex_data.get("gps"):
+                lines.append(f" • EXIF GPS Coords : {ex_data['gps'].get('Latitude')}, {ex_data['gps'].get('Longitude')}")
+
+        if data.get("phone_recon"):
+            ph_data = data["phone_recon"]
+            lines.append(f" • Phone Country   : {ph_data.get('country', 'N/A')} ({ph_data.get('carrier', 'N/A')})")
 
     else:
         for k, v in list(data.items())[:8]:

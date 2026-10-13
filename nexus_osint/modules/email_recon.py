@@ -9,6 +9,8 @@ import re
 from typing import Any, Dict, List, Optional
 import httpx
 
+from nexus_osint.modules.email_security import analyze_mail_security_posture
+from nexus_osint.modules.infostealer_recon import query_hudson_rock_email
 from nexus_osint.resolver import resolve_records
 from nexus_osint.ui import (
     console,
@@ -107,10 +109,6 @@ def check_gravatar_profile(email: str, timeout: float = 6.0) -> Dict[str, Any]:
         pass
 
     return result
-
-
-from nexus_osint.modules.email_security import analyze_mail_security_posture
-from nexus_osint.modules.infostealer_recon import query_hudson_rock_email
 
 
 def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:

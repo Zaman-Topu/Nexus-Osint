@@ -145,3 +145,111 @@ def query_hudson_rock_domain(domain: str, timeout: float = 10.0) -> Dict[str, An
         "users": 0,
         "stealer_families": {},
     }
+
+
+def analyze_infostealer(target: str, timeout: float = 8.0) -> Dict[str, Any]:
+    """Execute complete infostealer reconnaissance with interactive Rich UI tables."""
+    target = target.strip()
+    is_email = "@" in target
+
+    if is_email:
+        print_section("Hudson Rock Infostealer Intelligence", f"Target Email: {target}")
+        log_info("Querying Cavalier API for infostealer malware infections...")
+        res = query_hudson_rock_email(target, timeout=timeout)
+
+        if res.get("compromised"):
+            log_warning(
+                f"CRITICAL BREACH: Email compromised across [bold red]{res['total_stealers']}[/bold red] "
+                f"infostealer infection(s) ({res['total_corporate_services']} corporate credentials affected)!"
+            )
+            overview = {
+                "Target Email": target,
+                "Compromised Status": "YES (INFECTED)",
+                "Total Infected Devices": str(res["total_stealers"]),
+                "Corporate Services Leaked": str(res["total_corporate_services"]),
+                "User Services Leaked": str(res["total_user_services"]),
+            }
+            display_key_value_table("Infostealer Threat Overview", overview, border_style="red")
+
+            stealer_rows = []
+            for s in res.get("stealers", [])[:10]:
+                logins = ", ".join(s.get("top_logins", [])[:2]) or "N/A"
+                stealer_rows.append([
+                    s.get("computer_name", "Unknown"),
+                    s.get("operating_system", "Unknown"),
+                    str(s.get("date_compromised", "Unknown"))[:10],
+                    s.get("malware_path", "Unknown")[:40],
+                    logins,
+                ])
+            if stealer_rows:
+                display_list_table(
+                    "Compromised Host Machines (Hudson Rock)",
+                    ["Host Name", "OS", "Compromised Date", "Malware Path", "Sample Leaked Logins"],
+                    stealer_rows,
+                    border_style="red",
+                )
+        else:
+            if "error" in res:
+                log_error(f"Error querying Hudson Rock Cavalier: {res['error']}")
+            else:
+                log_success("No infostealer malware compromises found for this email address.")
+            display_key_value_table(
+                "Infostealer Status",
+                {
+                    "Target Email": target,
+                    "Compromised": "NO",
+                    "Total Infections": "0",
+                    "Threat Assessment": "Clean in Hudson Rock intelligence repository",
+                },
+                border_style="green",
+            )
+        return res
+
+    else:
+        print_section("Hudson Rock Infostealer Intelligence", f"Target Domain: {target}")
+        log_info("Querying Cavalier API for corporate domain infostealer compromises...")
+        res = query_hudson_rock_domain(target, timeout=timeout)
+
+        if res.get("compromised"):
+            log_warning(
+                f"CRITICAL BREACH: Domain compromised in [bold red]{res['total']}[/bold red] infostealer incident(s) "
+                f"({res['employees']} employee credentials, {res['users']} client logins compromised)!"
+            )
+            overview = {
+                "Corporate Domain": target,
+                "Compromised Status": "YES (COMPROMISED)",
+                "Total Compromised Logins": str(res["total"]),
+                "Employee Logins Compromised": str(res["employees"]),
+                "User / Client Logins Compromised": str(res["users"]),
+                "Third-Party Partner Breaches": str(res.get("third_parties", 0)),
+                "Last Employee Compromised": res.get("last_employee_compromised", "N/A"),
+                "Last User Compromised": res.get("last_user_compromised", "N/A"),
+            }
+            display_key_value_table("Corporate Threat Intelligence", overview, border_style="red")
+
+            fams = res.get("stealer_families", {})
+            if fams:
+                fam_rows = [[k, str(v)] for k, v in sorted(fams.items(), key=lambda x: x[1] if isinstance(x[1], int) else 0, reverse=True) if k != "total"]
+                if fam_rows:
+                    display_list_table(
+                        "Identified Malware Families",
+                        ["Stealer Family", "Infection Count"],
+                        fam_rows[:10],
+                        border_style="red",
+                    )
+        else:
+            if "error" in res:
+                log_error(f"Error querying Hudson Rock Cavalier: {res['error']}")
+            else:
+                log_success("No corporate infostealer malware breaches detected for this domain.")
+            display_key_value_table(
+                "Infostealer Status",
+                {
+                    "Corporate Domain": target,
+                    "Compromised": "NO",
+                    "Total Credentials": "0",
+                    "Threat Assessment": "Clean in Hudson Rock intelligence repository",
+                },
+                border_style="green",
+            )
+        return res

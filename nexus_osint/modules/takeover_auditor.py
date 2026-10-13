@@ -6,7 +6,7 @@ and detects dangling DNS delegation vulnerabilities.
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Union
 import httpx
 
 from nexus_osint.resolver import resolve_records
@@ -118,26 +118,99 @@ TAKEOVER_SIGNATURES: List[Dict[str, Any]] = [
             "Whatever you were looking for doesn't seem to be here",
         ],
     },
+    {
+        "service": "Vercel",
+        "cname_patterns": ["cname.vercel-dns.com", "vercel-dns.com", "vercel.app"],
+        "fingerprints": [
+            "The deployment could not be found on Vercel",
+            "404: NOT_FOUND",
+            "DEPLOYMENT_NOT_FOUND",
+        ],
+    },
+    {
+        "service": "Google Firebase",
+        "cname_patterns": ["firebaseapp.com", "web.app"],
+        "fingerprints": [
+            "Site Not Found",
+            "There's nothing here, yet",
+        ],
+    },
+    {
+        "service": "Fly.io",
+        "cname_patterns": ["fly.dev"],
+        "fingerprints": [
+            "404 Not Found",
+            "Could not find that app",
+        ],
+    },
+    {
+        "service": "ReadTheDocs",
+        "cname_patterns": ["readthedocs.io"],
+        "fingerprints": [
+            "is unknown to Read the Docs",
+        ],
+    },
+    {
+        "service": "Statuspage",
+        "cname_patterns": ["statuspage.io"],
+        "fingerprints": [
+            "Hosted Status Pages | Statuspage",
+            "Statuspage | Hosted Status Pages",
+            "You are being redirected",
+        ],
+    },
+    {
+        "service": "Helpjuice",
+        "cname_patterns": ["helpjuice.com"],
+        "fingerprints": [
+            "We could not find what you're looking for",
+        ],
+    },
 ]
 
 
-def check_subdomain_cname(subdomain: str) -> Optional[Dict[str, Any]]:
-    """Check if subdomain has a CNAME record matching known cloud services."""
+def check_subdomain_cname(
+    subdomain: str,
+    known_cnames: Optional[List[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Check if subdomain has a CNAME record matching known cloud services,
+    traversing multi-hop CNAME delegation chains if necessary.
+    """
     clean_sub = subdomain.strip().lower()
-    cnames = resolve_records(clean_sub, "CNAME")
-    if not cnames:
-        return None
+    current = clean_sub
+    chain: List[str] = []
+    visited: Set[str] = set()
 
-    cname_target = cnames[0].rstrip(".")
-    for sig in TAKEOVER_SIGNATURES:
-        for pat in sig["cname_patterns"]:
-            if pat in cname_target:
-                return {
-                    "subdomain": clean_sub,
-                    "cname": cname_target,
-                    "service": sig["service"],
-                    "fingerprints": sig["fingerprints"],
-                }
+    for hop in range(5):
+        if hop == 0 and known_cnames:
+            cnames = [c.rstrip(".") for c in known_cnames]
+        else:
+            cnames = [c.rstrip(".") for c in resolve_records(current, "CNAME")]
+
+        if not cnames:
+            break
+
+        next_target = cnames[0]
+        if next_target in visited:
+            break
+        visited.add(next_target)
+        chain.append(next_target)
+
+        # Check next_target against known cloud takeover signatures
+        for sig in TAKEOVER_SIGNATURES:
+            for pat in sig["cname_patterns"]:
+                if pat in next_target:
+                    return {
+                        "subdomain": clean_sub,
+                        "cname": next_target,
+                        "cname_chain": chain,
+                        "service": sig["service"],
+                        "fingerprints": sig["fingerprints"],
+                    }
+
+        current = next_target
+
     return None
 
 
@@ -146,17 +219,21 @@ async def verify_takeover_vulnerability(
     candidate: Dict[str, Any],
     timeout: float = 4.0,
 ) -> Dict[str, Any]:
-    """Verify whether a candidate CNAME returns takeover fingerprints."""
+    """Verify whether a candidate CNAME returns takeover fingerprints without blocking the event loop."""
     sub = candidate["subdomain"]
     cname = candidate["cname"]
     service = candidate["service"]
     fingerprints = candidate["fingerprints"]
+    loop = asyncio.get_running_loop()
 
-    # 1. Check if the CNAME target resolves via DNS
-    target_resolves = bool(resolve_records(cname, "A") or resolve_records(cname, "AAAA"))
+    # 1. Non-blocking DNS resolution check for CNAME target
+    target_resolves = await loop.run_in_executor(
+        None,
+        lambda: bool(resolve_records(cname, "A") or resolve_records(cname, "AAAA")),
+    )
 
-    # 2. Check HTTP/HTTPS response body for unclaimed fingerprints
-    urls_to_test = [f"http://{sub}", f"https://{sub}"]
+    # 2. Check HTTP/HTTPS response body for unclaimed fingerprints on subdomain & CNAME target
+    urls_to_test = [f"http://{sub}", f"https://{sub}", f"http://{cname}", f"https://{cname}"]
     matched_fingerprint = None
 
     for url in urls_to_test:
@@ -176,6 +253,7 @@ async def verify_takeover_vulnerability(
         return {
             "subdomain": sub,
             "cname": cname,
+            "cname_chain": candidate.get("cname_chain", [cname]),
             "service": service,
             "vulnerable": True,
             "status": "CONFIRMED VULNERABLE",
@@ -185,6 +263,7 @@ async def verify_takeover_vulnerability(
         return {
             "subdomain": sub,
             "cname": cname,
+            "cname_chain": candidate.get("cname_chain", [cname]),
             "service": service,
             "vulnerable": True,
             "status": "HIGH RISK: DANGLING CNAME",
@@ -194,6 +273,7 @@ async def verify_takeover_vulnerability(
         return {
             "subdomain": sub,
             "cname": cname,
+            "cname_chain": candidate.get("cname_chain", [cname]),
             "service": service,
             "vulnerable": False,
             "status": "CLAIMED / SAFE",
@@ -202,15 +282,27 @@ async def verify_takeover_vulnerability(
 
 
 async def audit_subdomains_async(
-    subdomains: List[str],
+    subdomains: Union[List[str], List[Dict[str, Any]]],
     concurrency: int = 10,
     timeout: float = 4.0,
 ) -> List[Dict[str, Any]]:
-    """Audit a list of subdomains for takeover vulnerabilities asynchronously."""
+    """Audit subdomains for takeover vulnerabilities with concurrency and chain support."""
     # Find candidates with matching CNAMEs
     candidates = []
-    for sub in subdomains:
-        cand = check_subdomain_cname(sub)
+    loop = asyncio.get_running_loop()
+
+    for item in subdomains:
+        if isinstance(item, dict):
+            sub_name = item.get("subdomain", "")
+            known_cnames = item.get("cnames", [])
+        else:
+            sub_name = str(item)
+            known_cnames = None
+
+        if not sub_name:
+            continue
+
+        cand = await loop.run_in_executor(None, lambda s=sub_name, kc=known_cnames: check_subdomain_cname(s, known_cnames=kc))
         if cand:
             candidates.append(cand)
 
@@ -231,12 +323,24 @@ async def audit_subdomains_async(
 
 
 def audit_subdomain_takeovers(
-    subdomains: List[str],
+    subdomains: Union[List[str], List[Dict[str, Any]]],
     concurrency: int = 10,
     timeout: float = 4.0,
 ) -> List[Dict[str, Any]]:
-    """Synchronous entry point for subdomain takeover auditing."""
+    """Synchronous entry point for subdomain takeover auditing, safe under existing event loops."""
     try:
-        return asyncio.run(audit_subdomains_async(subdomains, concurrency=concurrency, timeout=timeout))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(
+                    lambda: asyncio.run(audit_subdomains_async(subdomains, concurrency=concurrency, timeout=timeout))
+                ).result()
+        else:
+            return asyncio.run(audit_subdomains_async(subdomains, concurrency=concurrency, timeout=timeout))
     except Exception:
         return []

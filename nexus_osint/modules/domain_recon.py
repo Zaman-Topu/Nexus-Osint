@@ -338,7 +338,7 @@ def analyze_domain(domain_input: str, timeout: float = 6.0, concurrency: int = 1
 
     # 5. Favicon Forensics & Shodan Dork
     log_info("Probing favicon for MurmurHash3 Shodan footprint...")
-    favicon_data = fetch_favicon_hashes(domain, timeout=timeout)
+    favicon_data = fetch_favicon_hashes(domain, timeout=timeout, html_sample=http_data.get("html_sample"))
     if favicon_data:
         display_key_value_table("Favicon Hashes & Shodan Dork", {
             "Favicon URL": favicon_data.get("favicon_url", "N/A"),
@@ -363,10 +363,9 @@ def analyze_domain(domain_input: str, timeout: float = 6.0, concurrency: int = 1
         log_info("No active subdomains discovered.")
 
     # 7. Subdomain Takeover Audit
-    sub_names = [s["subdomain"] for s in subdomains]
-    if sub_names:
-        log_info(f"Auditing {len(sub_names)} subdomain(s) for dangling CNAME takeover risks...")
-        takeover_findings = audit_subdomain_takeovers(sub_names, concurrency=concurrency, timeout=4.0)
+    if subdomains:
+        log_info(f"Auditing {len(subdomains)} subdomain(s) for dangling CNAME takeover risks...")
+        takeover_findings = audit_subdomain_takeovers(subdomains, concurrency=concurrency, timeout=4.0)
         vulnerable_takeovers = [t for t in takeover_findings if t.get("vulnerable")]
 
         if vulnerable_takeovers:

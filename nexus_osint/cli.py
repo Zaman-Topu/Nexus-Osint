@@ -27,7 +27,11 @@ from nexus_osint.modules.dossier import run_master_dossier
 from nexus_osint.modules.email_recon import analyze_email
 from nexus_osint.modules.exif_recon import analyze_image_exif
 from nexus_osint.modules.github_recon import analyze_github
-from nexus_osint.modules.infostealer_recon import query_hudson_rock_domain, query_hudson_rock_email
+from nexus_osint.modules.infostealer_recon import (
+    analyze_infostealer,
+    query_hudson_rock_domain,
+    query_hudson_rock_email,
+)
 from nexus_osint.modules.ip_recon import analyze_ip
 from nexus_osint.modules.passive_urls import analyze_passive_urls
 from nexus_osint.modules.phone_recon import analyze_phone
@@ -97,10 +101,7 @@ def run_and_save_scan(
         data = analyze_image_exif(target, timeout=timeout)
 
     elif mode_lower in ("stealer", "infostealer", "cavalier"):
-        if "@" in target:
-            data = query_hudson_rock_email(target, timeout=timeout)
-        else:
-            data = query_hudson_rock_domain(target, timeout=timeout)
+        data = analyze_infostealer(target, timeout=timeout)
 
     else:
         log_error(f"Unknown scan module: {scan_mode}")
@@ -131,13 +132,14 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
         console.print("  [bold cyan][9][/bold cyan] ☁️  [white]Cloud Bucket Hunter[/white]     [dim](AWS S3, Google Cloud, Azure Blob probing)[/dim]")
         console.print("  [bold cyan][10][/bold cyan] 🕷️ [white]Passive Historical URLs[/white] [dim](AlienVault OTX archive endpoints & secrets)[/dim]")
         console.print("  [bold cyan][11][/bold cyan] 📸 [white]Image EXIF & Forensics[/white]  [dim](Camera specs & GPS coordinates with map links)[/dim]")
-        console.print("  [bold cyan][12][/bold cyan] 📁 [bold yellow]View Saved Case Folders[/bold yellow] [dim](Browse past targets, folders & reports)[/dim]")
+        console.print("  [bold cyan][12][/bold cyan] 🦠 [white]Infostealer Threat Intel[/white]  [dim](Hudson Rock malware compromises for email or domain)[/dim]")
+        console.print("  [bold cyan][13][/bold cyan] 📁 [bold yellow]View Saved Case Folders[/bold yellow] [dim](Browse past targets, folders & reports)[/dim]")
         console.print("  [bold cyan][0][/bold cyan] 🚪 [white]Exit NexusOSINT[/white]")
         console.print()
 
         choice = Prompt.ask(
             "[bold green]nexusosint[/bold green] [bold cyan]>[/bold cyan]",
-            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "0"],
+            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "0"],
             default="1",
         )
 
@@ -201,6 +203,11 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
                 run_and_save_scan("exif", target.strip(), timeout=timeout)
 
         elif choice == "12":
+            target = Prompt.ask("\nEnter email address or corporate domain for infostealer breach check")
+            if target.strip():
+                run_and_save_scan("stealer", target.strip(), timeout=timeout)
+
+        elif choice == "13":
             view_cases_interactive_menu()
 
         console.print()

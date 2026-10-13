@@ -39,7 +39,10 @@ def resolve_domain_to_ip(domain: str) -> str:
     records_v6 = resolve_records(clean, "AAAA")
     if records_v6:
         return records_v6[0]
-    return socket.gethostbyname(clean)
+    try:
+        return socket.gethostbyname(clean)
+    except Exception as e:
+        raise ValueError(f"Could not resolve domain '{clean}' to an IP address: {e}")
 
 
 def analyze_ip(target: str, timeout: float = 6.0) -> Dict[str, Any]:

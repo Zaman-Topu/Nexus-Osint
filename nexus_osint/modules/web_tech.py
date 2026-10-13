@@ -8,6 +8,7 @@ import codecs
 import hashlib
 import re
 from typing import Any, Dict, List, Optional
+import urllib.parse
 import httpx
 
 
@@ -70,21 +71,50 @@ def calculate_favicon_hash(content: bytes) -> Dict[str, Any]:
     }
 
 
-def fetch_favicon_hashes(domain: str, timeout: float = 5.0) -> Optional[Dict[str, Any]]:
+def fetch_favicon_hashes(
+    domain: str,
+    timeout: float = 5.0,
+    html_sample: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """Fetch website favicon and calculate cryptographic and Shodan hashes."""
     clean = domain.strip().lower().replace("http://", "").replace("https://", "").split("/")[0]
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NexusOSINT/2.0"}
 
-    urls_to_try = [
+    urls_to_try: List[str] = []
+
+    # If HTML was already fetched, parse <link rel="icon"> / <link rel="shortcut icon">
+    if html_sample:
+        # Match <link rel="icon" href="..."> and variants
+        icon_matches = re.findall(
+            r'<link[^>]+rel=["\'](?:shortcut )?icon["\'][^>]+href=["\']([^"\']+)["\']',
+            html_sample,
+            re.IGNORECASE,
+        )
+        if not icon_matches:
+            icon_matches = re.findall(
+                r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\'](?:shortcut )?icon["\']',
+                html_sample,
+                re.IGNORECASE,
+            )
+        for href in icon_matches:
+            full_url = urllib.parse.urljoin(f"https://{clean}/", href.strip())
+            if full_url not in urls_to_try:
+                urls_to_try.append(full_url)
+
+    urls_to_try.extend([
         f"https://{clean}/favicon.ico",
         f"http://{clean}/favicon.ico",
-    ]
+    ])
 
     for url in urls_to_try:
         try:
             with httpx.Client(timeout=timeout, follow_redirects=True, verify=False) as client:
                 resp = client.get(url, headers=headers)
                 if resp.status_code == 200 and len(resp.content) > 10:
+                    # Validate that content is not an HTML error or fallback page
+                    start = resp.content[:200].lower()
+                    if b"<!doctype html" in start or b"<html" in start:
+                        continue
                     hashes = calculate_favicon_hash(resp.content)
                     hashes["favicon_url"] = str(resp.url)
                     hashes["size_bytes"] = len(resp.content)

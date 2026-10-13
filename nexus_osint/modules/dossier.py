@@ -5,6 +5,7 @@ Autonomously chains intelligence modules based on an initial seed target
 """
 
 import os
+import re
 from typing import Any, Dict, List, Optional, Set
 from nexus_osint.case_manager import create_target_case_folder, print_case_banner, save_case_files
 from nexus_osint.exporter import export_to_json, export_to_markdown
@@ -77,8 +78,24 @@ def detect_target_type(target: str) -> str:
         return "email"
     if is_ip(target):
         return "ip"
-    if target.startswith("+") or (target.isdigit() and len(target) >= 8):
-        return "phone"
+
+    # Phone number check:
+    # International prefix ('+', '00'), or string without alphabetic characters containing at least 7 digits
+    raw_digits = re.sub(r"\D", "", target)
+    has_letters = any(c.isalpha() for c in target)
+    if not has_letters and len(raw_digits) >= 7:
+        if (
+            target.startswith("+")
+            or target.startswith("00")
+            or "(" in target
+            or "-" in target
+            or " " in target
+            or target.isdigit()
+            or raw_digits.startswith("880")
+            or re.match(r"^01[3-9]", raw_digits)
+        ):
+            return "phone"
+
     if "." in target and not target.startswith("@") and " " not in target:
         return "domain"
     return "username"

@@ -31,12 +31,21 @@ def analyze_mail_security_posture(domain: str) -> Dict[str, Any]:
     txt_records = resolve_records(clean_domain, "TXT")
     spf_records = [r for r in txt_records if "v=spf1" in r]
 
-    # 2. Fetch DMARC records
+    # 2. Fetch DMARC records (with RFC 7489 organizational domain fallback)
     dmarc_records = resolve_records(f"_dmarc.{clean_domain}", "TXT")
     dmarc_record = dmarc_records[0] if dmarc_records else None
+    inherited_from = None
+
+    if not dmarc_record and clean_domain.count(".") >= 2:
+        parent_domain = ".".join(clean_domain.split(".")[1:])
+        parent_dmarc = resolve_records(f"_dmarc.{parent_domain}", "TXT")
+        if parent_dmarc:
+            dmarc_record = parent_dmarc[0]
+            inherited_from = parent_domain
 
     # Parse SPF details
     has_spf = len(spf_records) > 0
+    multi_spf_error = len(spf_records) > 1
     spf_qualifier = "None"
     spf_mechanisms = []
     if has_spf:
@@ -51,8 +60,14 @@ def analyze_mail_security_posture(domain: str) -> Dict[str, Any]:
     # Parse DMARC details
     has_dmarc = dmarc_record is not None
     dmarc_tags = parse_dmarc_record(dmarc_record) if dmarc_record else {}
-    dmarc_policy = dmarc_tags.get("p", "none" if has_dmarc else "missing")
     dmarc_sub_policy = dmarc_tags.get("sp")
+
+    # If inherited from organizational parent, RFC 7489 mandates using sp if defined, else p
+    if inherited_from and dmarc_sub_policy:
+        dmarc_policy = dmarc_sub_policy
+    else:
+        dmarc_policy = dmarc_tags.get("p", "none" if has_dmarc else "missing")
+
     pct_val = dmarc_tags.get("pct", "100")
     rua = dmarc_tags.get("rua", "None")
 
@@ -70,6 +85,14 @@ def analyze_mail_security_posture(domain: str) -> Dict[str, Any]:
             "Domain has zero email authentication records. "
             "Threat actors can trivially forge emails from this domain with guaranteed inbox delivery."
         )
+    elif multi_spf_error:
+        spoofable = True
+        risk_level = "HIGH"
+        posture = "HIGH RISK: Multiple SPF Records (RFC 7208 PermError)"
+        explanation = (
+            f"Domain publishes {len(spf_records)} SPF records. RFC 7208 mandates a PermError when multiple SPF records "
+            "are found, causing receiving mail servers to fail authentication and leaving inboxes vulnerable."
+        )
     elif not has_dmarc:
         spoofable = True
         risk_level = "HIGH"
@@ -86,22 +109,49 @@ def analyze_mail_security_posture(domain: str) -> Dict[str, Any]:
             "DMARC policy is set to 'p=none'. Unauthorized spoofed emails will generate telemetry "
             "reports but will NOT be blocked or quarantined by receiving mail servers."
         )
+    elif pct_val == "0":
+        spoofable = True
+        risk_level = "MEDIUM"
+        posture = f"WARNING: Spoofable (DMARC pct=0 Disables Enforcement)"
+        explanation = (
+            f"DMARC policy is set to '{dmarc_policy}', but 'pct=0' instructs receivers to apply the policy "
+            "to 0% of mail, effectively disabling filtering."
+        )
     elif dmarc_policy == "quarantine":
-        spoofable = False
-        risk_level = "LOW"
-        posture = "MODERATE: Partially Protected (DMARC Quarantine Enforced)"
+        try:
+            pct_int = int(pct_val)
+        except ValueError:
+            pct_int = 100
+        spoofable = pct_int < 100
+        risk_level = "MEDIUM" if spoofable else "LOW"
+        posture = (
+            f"MODERATE: Partially Protected (DMARC Quarantine Enforced for {pct_val}%)"
+            if pct_int < 100
+            else "MODERATE: Partially Protected (DMARC Quarantine Enforced)"
+        )
         explanation = (
             "DMARC policy is set to 'p=quarantine'. Spoofed emails are diverted to the recipient's "
             "Spam or Junk folder rather than rejected outright."
         )
     elif dmarc_policy == "reject":
-        spoofable = False
-        risk_level = "SECURE"
-        posture = "SECURE: Strictly Protected (DMARC Reject Enforced)"
+        try:
+            pct_int = int(pct_val)
+        except ValueError:
+            pct_int = 100
+        spoofable = pct_int < 100
+        risk_level = "MEDIUM" if spoofable else "SECURE"
+        posture = (
+            f"MODERATE: Partial Reject (DMARC Reject Enforced for {pct_val}%)"
+            if pct_int < 100
+            else "SECURE: Strictly Protected (DMARC Reject Enforced)"
+        )
         explanation = (
             "DMARC policy is set to 'p=reject'. Unauthorized emails will be rejected by compliant mail servers, "
             "providing robust anti-spoofing and anti-phishing defense."
         )
+
+    if inherited_from:
+        explanation += f" (Note: DMARC policy inherited from organizational domain '{inherited_from}' per RFC 7489)."
 
     return {
         "domain": clean_domain,

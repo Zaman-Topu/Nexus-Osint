@@ -1,260 +1,352 @@
 <div align="center">
 
-# ⚡ NexusOSINT
+# ⚡ NexusOSINT v2.0.0
 
-### *Next-Gen Modular Open-Source Intelligence & Autonomous Chained Reconnaissance Suite*
+### *Advanced Modular Open-Source Intelligence (OSINT) & Autonomous Threat Intelligence Framework*
 
-[![GitHub Release](https://img.shields.io/badge/release-v2.0.0-0ea5e9?style=for-the-badge&logo=github)](https://github.com/zaman-topu/nexusosint)
+[![GitHub Release](https://img.shields.io/badge/release-v2.0.0-0ea5e9?style=for-the-badge&logo=github)](https://github.com/Zaman-Topu/Nexus-Osint)
+[![Tests](https://img.shields.io/badge/tests-38%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Termux%20%7C%20Linux-f59e0b?style=for-the-badge&logo=linux&logoColor=white)](https://termux.dev)
-[![API Keys Required](https://img.shields.io/badge/API%20Keys-Zero%20Required-8b5cf6?style=for-the-badge&logo=shield)](README.md)
-[![Maintained By](https://img.shields.io/badge/Maintainer-zaman--topu-ec4899?style=for-the-badge&logo=github)](https://github.com/zaman-topu)
+[![Platform](https://img.shields.io/badge/platform-Termux%20(Android)%20%7C%20Linux-f59e0b?style=for-the-badge&logo=linux&logoColor=white)](https://termux.dev)
+[![API Keys Required](https://img.shields.io/badge/API%20Keys-Zero%20Required%20(100%25%20Free)-8b5cf6?style=for-the-badge&logo=shield)](README.md)
+[![Maintained By](https://img.shields.io/badge/Maintainer-zaman--topu-ec4899?style=for-the-badge&logo=github)](https://github.com/Zaman-Topu)
 
 <p align="center">
-  <b>A unified, high-speed OSINT framework engineered for Termux (Android) and Linux.</b><br>
-  Execute deep reconnaissance across 10 specialized intelligence modules with autonomous cross-vector pivoting, interactive HTML network graphs, and automated dedicated case investigations.
+  <b>A blazing-fast, unified cyber reconnaissance and digital forensics suite engineered natively for Linux and Android Termux.</b><br>
+  Conduct comprehensive multi-vector investigations across <b>12 specialized modules</b> with zero paid API keys, automated multi-hop pivoting, interactive HTML entity graphs, and organized case management.
 </p>
 
 ---
 
-[🚀 Quick Start](#-quick-start) •
-[🌟 Intelligence Matrix](#-intelligence-matrix) •
-[💻 CLI Usage](#-cli-usage--command-cheatsheet) •
+[🚀 Quick Installation](#-quick-installation) •
+[🌟 Intelligence Capabilities](#-intelligence-capabilities) •
+[💻 CLI Cheatsheet](#-cli-command-cheatsheet) •
+[🧠 Autonomous Dossier](#-autonomous-master-dossier) •
 [📁 Case Manager](#-automated-case-folder-architecture) •
-[🌐 Graph Visualizer](#-interactive-network-graph-visualizer) •
-[🛡️ Security](#-security--opsec) •
-[👤 Credits](#-author--credits)
+[🌐 Network Graph](#-interactive-visjs-network-graph) •
+[📱 Termux Setup](#-termux--android-native-readiness) •
+[🛡️ OPSEC & Security](#-security--opsec) •
+[👤 Author](#-author--maintainer)
 
 </div>
 
 ---
 
-## 🧭 Architecture Overview
+## 🔍 Why NexusOSINT? (Comparison Matrix)
+
+Traditional OSINT utilities are often fragmented: username scrapers require separate installations from network mappers, subdomain discovery depends on complex Go toolchains or paid API tokens, and Android Termux environments break due to missing DNS resolver configurations.
+
+**NexusOSINT solves this with an all-in-one, zero-dependency-binary pure Python framework:**
+
+| Feature / Capability | NexusOSINT v2.0.0 | theHarvester | SpiderFoot | Sherlock | PhoneInfoga |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Zero API Keys Needed** | **100% Free** | ⚠️ Partial (needs keys) | ⚠️ Partial (needs keys) | :white_check_mark: | ⚠️ Needs Numverify |
+| **Autonomous Cross-Vector Pivoting** | :white_check_mark: | :x: | ⚠️ High Config | :x: | :x: |
+| **Hudson Rock Infostealer Malware Intel** | :white_check_mark: | :x: | :x: | :x: | :x: |
+| **Subdomain Takeover Auditor (Dangling CNAMEs)** | :white_check_mark: | :x: | ⚠️ Basic | :x: | :x: |
+| **Pure-Python Favicon MurmurHash3 (Shodan Dorking)** | :white_check_mark: | :x: | :x: | :x: | :x: |
+| **SPF / DMARC Spoofability Analysis** | :white_check_mark: | :x: | ⚠️ Basic | :x: | :x: |
+| **Interactive HTML Vis.js Relationship Graph** | :white_check_mark: | :x: | :white_check_mark: | :x: | :x: |
+| **Native Termux (Android) Hardened DNS** | :white_check_mark: | :x: | :x: | :white_check_mark: | ⚠️ Limited |
+| **Structured Per-Target Case Directories** | :white_check_mark: | :x: | :white_check_mark: | :x: | :x: |
+
+---
+
+## 🧭 System Architecture & Workflow
 
 ```
-                          ┌──────────────────────────┐
-                          │   NEXUSOSINT CLI ENGINE   │
-                          │   (nexusosint <cmd> <tgt>)│
-                          └─────────────┬────────────┘
-                                        │
-           ┌────────────────────────────┼───────────────────────────┐
-           ▼                            ▼                           ▼
- ┌──────────────────┐         ┌──────────────────┐        ┌──────────────────┐
- │ IDENTITIES & ACC │         │ NETWORK & THREAT │        │ INFRA & ASSETS   │
- ├──────────────────┤         ├──────────────────┤        ├──────────────────┤
- │ • Username Recon │         │ • IP Geolocation │        │ • Domain Recon   │
- │ • GitHub Deep    │         │ • Shodan Ports   │        │ • Cloud Buckets  │
- │ • Email Intel    │         │ • Reverse DNS    │        │ • Passive URLs   │
- │ • Phone Carrier  │         │ • CVE Detection  │        │ • EXIF GPS       │
- └─────────┬────────┘         └─────────┬────────┘        └─────────┬────────┘
-           │                            │                           │
-           └────────────────────────────┼───────────────────────────┘
-                                        ▼
-                       ┌─────────────────────────────────┐
-                       │   AUTONOMOUS DOSSIER ENGINE     │
-                       │   (Chained Pivot & Correlation) │
-                       └────────────────┬────────────────┘
-                                        │
-                                        ▼
-             ┌─────────────────────────────────────────────────────┐
-             │       DEDICATED CASE FOLDER (results/target_*)      │
-             ├───────────────────┬─────────────────────────────────┤
-             │ 📄 report.md      │ Executive Markdown Dossier      │
-             │ 🗃️ data.json      │ Structured Raw Intelligence     │
-             │ 📝 summary.txt    │ Instant Terminal Overview       │
-             │ 🌐 visual_graph.html│ Vis.js Interactive Topology   │
-             └───────────────────┴─────────────────────────────────┘
+                                  ┌──────────────────────────┐
+                                  │   NEXUSOSINT CLI ENGINE   │
+                                  │   (nexusosint <cmd> <tgt>)│
+                                  └─────────────┬────────────┘
+                                                │
+                 ┌──────────────────────────────┼──────────────────────────────┐
+                 ▼                              ▼                              ▼
+       ┌──────────────────┐           ┌──────────────────┐           ┌──────────────────┐
+       │ IDENTITIES & ACC │           │ NETWORK & THREAT │           │ INFRA & ASSETS   │
+       ├──────────────────┤           ├──────────────────┤           ├──────────────────┤
+       │ • Username Recon │           │ • IP Geolocation │           │ • Domain Recon   │
+       │ • GitHub Deep    │           │ • Shodan Ports   │           │ • Cloud Buckets  │
+       │ • Email Intel    │           │ • Reverse DNS    │           │ • Passive URLs   │
+       │ • Phone Carrier  │           │ • Infostealers   │           │ • Sub Takeovers  │
+       │ • EXIF Forensics │           │ • SPF/DMARC Risk │           │ • Favicon MMH3   │
+       └─────────┬────────┘           └─────────┬────────┘           └─────────┬────────┘
+                 │                              │                              │
+                 └──────────────────────────────┼──────────────────────────────┘
+                                                ▼
+                             ┌─────────────────────────────────────┐
+                             │      AUTONOMOUS DOSSIER ENGINE      │
+                             │    (Cross-Vector Entity Pivoting)   │
+                             └──────────────────┬──────────────────┘
+                                                │
+                                                ▼
+                   ┌─────────────────────────────────────────────────────┐
+                   │       DEDICATED CASE FOLDER (results/target_*)      │
+                   ├───────────────────┬─────────────────────────────────┤
+                   │ 📄 report.md      │ Executive Markdown Dossier      │
+                   │ 🗃️ data.json      │ Machine-Readable Structured JSON│
+                   │ 📝 summary.txt    │ Terminal Instant Overview       │
+                   │ 🌐 visual_graph.html│ Vis.js Interactive Topology   │
+                   └───────────────────┴─────────────────────────────────┘
 ```
 
 ---
 
-## 🌟 Intelligence Matrix
+## 🌟 Intelligence Capabilities
 
-NexusOSINT provides complete multi-vector reconnaissance across **10 native modules** plus the autonomous **Master Dossier Chaining Engine**:
+NexusOSINT v2.0.0 bundles **12 specialized intelligence vectors** running completely free and unauthenticated:
 
-| Vector | Command | Description | Zero API Key? |
-|---|---|---|:---:|
-| 🎯 **Master Dossier** | `nexusosint all <seed>` | Autonomous auto-pivot across Email, Username, Domain, IP, and Phone. Chains discoveries and compiles full dossiers with interactive entity graphs. | :white_check_mark: |
-| 📍 **IP Intelligence** | `nexusosint ip <ip>` | Country flags, city, state, postal code, GPS coordinates, Google Maps links, ASN, ISP, organization, timezone, and PTR reverse DNS. | :white_check_mark: |
-| 🌐 **Domain Recon** | `nexusosint domain <domain>` | Full DNS query (`A`, `AAAA`, `MX`, `NS`, `TXT`, `SOA`), RDAP registrar query, server profile & security headers audit (`HSTS`, `CSP`, etc.), plus subdomain discovery. | :white_check_mark: |
-| 👤 **Username Recon** | `nexusosint user <handle>` | Asynchronously scans 50+ websites & social networks (GitHub, GitLab, Steam, Reddit, Keybase, etc.) with rate-limiting and progress tracking. | :white_check_mark: |
-| ✉️ **Email Intelligence** | `nexusosint email <email>` | RFC syntax validation, disposable/temporary email provider check, active MX record verification, SPF/DMARC checks, and Gravatar identity pivoting. | :white_check_mark: |
-| 📞 **Phone Intelligence** | `nexusosint phone <number>` | E.164 formatting, carrier/operator lookup, geographic region, timezone, and line classification (Mobile, VoIP, Landline). | :white_check_mark: |
-| 🐙 **GitHub Deep Recon** | `nexusosint github <user>` | User profile extraction, public SSH keys (`.keys`), GPG keys, and commit patch scraping to uncover commit author emails. | :white_check_mark: |
-| 🛡️ **Shodan Threat Recon** | `nexusosint shodan <ip>` | Queries Shodan InternetDB for open ports, running banners, CPEs, and unpatched CVE vulnerabilities. | :white_check_mark: |
-| ☁️ **Cloud Bucket Hunter** | `nexusosint cloud <keyword>` | Probes permutation names across AWS S3, Google Cloud Storage, and Azure Blob Storage for exposed buckets (200 OK / 403 Forbidden). | :white_check_mark: |
-| 🕷️ **Passive URLs Recon** | `nexusosint urls <domain>` | Queries AlienVault OTX passive telemetry for historical URLs, indexing sensitive paths (`.env`, `.git`, `.sql`, `admin`, `api`, `tokens`). | :white_check_mark: |
-| 📸 **Image EXIF Forensics** | `nexusosint exif <image>` | Extracts hardware/camera metadata and converts embedded GPS coordinates into clickable Google Maps and OpenStreetMap links. | :white_check_mark: |
-| 📁 **Case Manager** | `nexusosint cases` | Browse and view all stored target case folders, summaries, reports, and interactive graphs. | :white_check_mark: |
+### 1. 🛡️ Infostealer Malware Threat Intelligence (`stealer`)
+- **HUDSON ROCK CAVALIER TELEMETRY**: Queries public zero-key infostealer breach telemetry to identify devices and corporate organizations infected with malware (RedLine, Lumma, Vidar, Raccoon, META, etc.).
+- **Corporate Exposure Index**: Pinpoints compromised employee credentials, third-party contractor breaches, and leaked user credentials across your target corporate domain.
+- **Email Infection Detection**: Detects specific infected computers that held target credentials in browser vaults or credential managers.
+
+### 2. 🌐 Multi-Source Passive Subdomain Discovery (`domain`)
+- **Tri-Source Passive Aggregation**: Simultaneously queries **Certificate Transparency Logs (crt.sh)**, **HackerTarget Passive DNS**, and **AlienVault OTX** in parallel with strict async timeouts.
+- **Active Resolution**: Resolves discovered candidates into active IPv4 addresses and validates live hosts.
+
+### 3. 🎯 Dangling CNAME Subdomain Takeover Auditor (`domain`, `takeover`)
+- **Multi-Hop CNAME Traversal**: Follows up to 5 hops of DNS CNAME delegations, detecting circular loops and dangling records.
+- **Cloud Signature Fingerprinting**: Detects unclaimed cloud resources across **AWS S3**, **GitHub Pages**, **Heroku**, **Shopify**, **Microsoft Azure**, **Fastly CDN**, **Fly.io**, **Vercel**, **Firebase Hosting**, and **ReadTheDocs**.
+- **Live Response Validation**: Verifies cloud 404 / `NoSuchBucket` / unclaimed project signatures to eliminate false positives.
+
+### 4. ✉️ Email Spoofing & Security Posture (`email`, `domain`)
+- **SPF Mechanism Parser**: Inspects `v=spf1` policies, tracking mechanisms (`ip4`, `include`, `redirect`), and evaluates the enforcement qualifier (`-all` Hardfail vs `~all` Softfail vs `?all` Neutral).
+- **DMARC Evaluator**: Verifies `p=reject`, `p=quarantine`, or `p=none` policies alongside alignment parameters (`aspf`, `adkim`).
+- **Spoofability Rating**: Generates an actionable risk verdict (**Low Risk / Hardened**, **Medium Risk / Weak**, or **CRITICAL / Easily Spoofable**).
+
+### 5. 🎨 Pure-Python Favicon MurmurHash3 Shodan Dorking (`domain`)
+- **Zero-Binary MurmurHash3**: Custom pure-Python 32-bit x86 MurmurHash3 implementation matching Shodan's exact hashing specification without requiring C-compiler dependencies (`mmh3`).
+- **One-Click Shodan Dorks**: Outputs direct Shodan queries (`http.favicon.hash:<hash>`) to locate backend origin servers hiding behind Cloudflare/CDNs.
+
+### 6. 📞 Global Phone & Carrier Intelligence (`phone`)
+- **Dynamic International Prefixing**: Automatically handles raw national inputs, international prefix notations (`+`, `00`), and Bangladesh domestic prefixes (`013`–`019`, `880`).
+- **Detailed Carrier Telemetry**: Identifies network operator (Robi, Grameenphone, Banglalink, AT&T, Verizon, etc.), line classification (Mobile, Fixed Line, VoIP), geographic region, and timezones.
+
+### 7. 👤 Deep Username Footprinting (`user`)
+- Asynchronously interrogates 50+ high-traffic developer portals, social networks, gaming communities, and code repositories (GitHub, GitLab, Reddit, Keybase, Steam, Telegram, etc.) with concurrency control.
+
+### 8. 🐙 GitHub Deep Forensics (`github`)
+- Profile extraction, bio metadata, public SSH keys (`.keys`), GPG keys, and commit-level patch scraping to harvest hidden author email addresses from public activity.
+
+### 9. 📍 IP Geolocation & ASN Mapping (`ip`)
+- High-precision country flag, city, state, postal code, GPS coordinates, Google Maps navigation links, ASN designation, ISP name, and PTR reverse DNS.
+
+### 10. 🛡️ Shodan InternetDB Threat Intelligence (`shodan`)
+- Fast zero-key scanning of open ports, software banners, CPE identifiers, and documented unpatched CVE vulnerabilities.
+
+### 11. ☁️ Multi-Cloud Storage Hunter (`cloud`)
+- Permutates permutations against Amazon AWS S3, Google Cloud Storage, and Azure Blob containers to discover public or protected storage buckets.
+
+### 12. 📸 Image EXIF Metadata & Geolocation (`exif`)
+- Extracts camera make/model, shutter/lens parameters, software version, original capture timestamps, and translates GPS coordinates into direct Google Maps / OpenStreetMap hyperlinks.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Installation
 
-### Installation
+### Prerequisites
+- Python 3.10 or higher
+- Git
 
+### Standard Installation (Linux / macOS)
 ```bash
-# Clone the repository
-git clone https://github.com/zaman-topu/nexusosint.git
-cd nexusosint
+# 1. Clone repository
+git clone https://github.com/Zaman-Topu/Nexus-Osint.git
+cd Nexus-Osint
 
-# Install pure-Python dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# (Optional) Install as global CLI tool
+# 3. (Recommended) Install globally as CLI
 pip install -e .
 ```
 
-> [!TIP]
-> In Termux (Android), you can run `nexusosint` directly from **any terminal folder** after installation!
+---
+
+## 📱 Termux / Android Native Readiness
+
+NexusOSINT is engineered specifically to eliminate mobile Termux pain points:
+
+1. **Missing `/etc/resolv.conf`**: Standard Python DNS libraries fail on non-rooted Android devices. NexusOSINT includes a custom resilient resolver (`nexus_osint/resolver.py`) that falls back to hardened public DNS servers (`1.1.1.1`, `8.8.8.8`, `9.9.9.9`).
+2. **Zero C-Extensions**: All cryptographic hashing (Favicon MurmurHash3, MD5) is implemented in pure Python, requiring **no `gcc`, `clang`, or compiled binaries**.
+
+### Termux 3-Step Setup
+```bash
+pkg update && pkg install -y git python
+git clone https://github.com/Zaman-Topu/Nexus-Osint.git
+cd Nexus-Osint
+pip install -r requirements.txt
+python osint.py
+```
 
 ---
 
-## 💻 CLI Usage & Command Cheatsheet
-
-NexusOSINT features a unified, intuitive command interface:
+## 💻 CLI Command Cheatsheet
 
 ```bash
-nexusosint <command> <target> [options]
+nexusosint <command> <target> [flags]
 ```
 
 ### 🎯 Primary Reconnaissance Commands
 ```bash
-# 🎯 Run Autonomous Master Dossier on ANY target seed:
-nexusosint all 1.1.1.1
-nexusosint all example.com
-nexusosint all torvalds
+# 🎯 Autonomous Master Dossier (Chains all vectors and builds relationship graph)
 nexusosint all target@example.com
+nexusosint all victimcorp.com
+nexusosint all 8.8.8.8
+nexusosint all zaman-topu
 
-# 📍 IP Geolocation & ASN Intelligence:
-nexusosint ip 8.8.8.8
+# 🛡️ Hudson Rock Infostealer Malware Breach Telemetry
+nexusosint stealer ceo@victimcorp.com
+nexusosint stealer victimcorp.com
 
-# 🌐 Domain Reconnaissance & Subdomains:
-nexusosint domain github.com
+# 🌐 Domain Reconnaissance, Passive Subdomains & Takeover Audit
+nexusosint domain target.com
 
-# 👤 Username Scan across 50+ platforms:
-nexusosint user admin
+# 👤 Cross-Platform Username Footprinting (50+ sites)
+nexusosint user octocat
 
-# ✉️ Email Intelligence & Gravatar Pivot:
-nexusosint email target@example.com
+# ✉️ Email Intelligence, Spoofability & Gravatar
+nexusosint email target@domain.com
 
-# 📞 Phone Carrier & Location:
+# 📞 Global Phone Carrier & Geolocation Lookup
+nexusosint phone +8801812345678
+nexusosint phone 01812345678 --region BD
 nexusosint phone +14155552671
 
-# 🐙 Deep GitHub Recon (Commit emails & SSH keys):
+# 🐙 Deep GitHub Profile & Commit Email Extraction
 nexusosint github torvalds
 
-# 🛡️ Shodan InternetDB Ports & CVE Vulnerabilities:
+# 📍 IP Geolocation, ASN & Reverse DNS
+nexusosint ip 1.1.1.1
+
+# 🛡️ Shodan InternetDB Open Ports & CVE Vulnerabilities
 nexusosint shodan 1.1.1.1
 
-# ☁️ Cloud Storage Bucket Hunter (AWS, GCP, Azure):
-nexusosint cloud acme_corp
+# ☁️ Cloud Bucket Permutation Hunter (AWS, GCP, Azure)
+nexusosint cloud targetcorp
 
-# 🕷️ Historical Archive URLs & Sensitive Endpoints:
-nexusosint urls example.com
+# 🕷️ Historical Passive URLs & Sensitive Endpoint Extraction
+nexusosint urls targetcorp.com
 
-# 📸 Image EXIF Camera & GPS Forensics:
-nexusosint exif /path/to/photo.jpg
+# 📸 Image EXIF Forensics & GPS Mapping
+nexusosint exif /path/to/evidence.jpg
 
-# 📁 View All Saved Investigation Case Folders:
+# 📁 Interactive Case Manager & Past Reports Browser
 nexusosint cases
 
-# 🖥️ Launch Interactive Terminal Menu:
+# 🖥️ Interactive Full-Screen Terminal Dashboard
 nexusosint menu
-# or simply execute without arguments:
-nexusosint
 ```
 
-### ⚙️ Available Options & Flags
-
+### ⚙️ Command-Line Flags & Options
 | Flag | Long Flag | Description | Default |
 |---|---|---|:---:|
-| `-o` | `--output-dir` | Custom destination folder for case results | `results/` |
-| `-t` | `--timeout` | Network request timeout in seconds | `6.0` |
-| `-c` | `--concurrency` | Concurrent worker count for async routines | `15` |
-| | `--no-banner` | Suppress ASCII banner for clean output | `False` |
-| | `--no-save` | Display findings on-screen only (skip writing files) | `False` |
-| `-h` | `--help` | Display comprehensive help documentation | |
+| `-o` | `--output-dir` | Custom directory to save case investigation folders | `results/` |
+| `-t` | `--timeout` | Network socket timeout in seconds | `6.0` |
+| `-c` | `--concurrency` | Concurrency worker count for asynchronous operations | `15` |
+| `-r` | `--region` | Country code for phone number normalization | `Auto` |
+| | `--stealer` | Trigger Hudson Rock infostealer lookup in email/domain mode | `Auto` |
+| | `--no-banner` | Suppress Rich ASCII banner for clean output piping | `False` |
+| | `--no-save` | Display results in terminal only (skip writing files to disk) | `False` |
 
 ---
 
 ## 📁 Automated Case Folder Architecture
 
-Every scan executed through NexusOSINT **automatically creates an isolated investigation directory** inside [`results/`](results/) labeled by target, scan mode, and timestamp:
+Every single reconnaissance execution automatically packages findings into a dedicated case directory inside `results/`:
 
 ```text
-results/1.1.1.1_all_20261010_080808/
-├── 📄 report.md        # Comprehensive Markdown Dossier
-├── 🗃️ data.json        # Structured Findings (Machine-readable JSON)
-├── 📝 summary.txt      # Terminal-Friendly Quick Summary
-└── 🌐 visual_graph.html # Interactive Vis.js Network Graph
+results/victimcorp.com_all_20261013_234500/
+├── 📄 report.md          # Comprehensive Executive Markdown Dossier
+├── 🗃️ data.json          # Machine-Readable Structured JSON Data
+├── 📝 summary.txt        # Instant Terminal Summary (cat friendly)
+└── 🌐 visual_graph.html  # Standalone Vis.js Interactive Relationship Graph
 ```
 
-### ⚡ Quick View Workflow
+### Quick Case Viewing
 ```bash
-# Instant terminal inspection:
-cat results/1.1.1.1_all_20261010_080808/summary.txt
+# Instant terminal inspection
+cat results/victimcorp.com_all_20261013_234500/summary.txt
 
-# Or browse past cases through the CLI:
+# Or explore visually using the built-in browser
 nexusosint cases
 ```
 
 ---
 
-## 🌐 Interactive Network Graph Visualizer
+## 🌐 Interactive Vis.js Network Graph
 
-When executing `nexusosint all <target>`, NexusOSINT compiles all correlated entities into a standalone interactive HTML graph rendered via **Vis.js**:
+When executing the **Master Dossier (`all`)**, NexusOSINT generates a standalone HTML relationship graph powered by **Vis.js**:
 
-- **Physics-Based Force Simulation:** Nodes self-organize with smooth collision and spring dynamics.
-- **Draggable & Zoomable Canvas:** Pan, zoom, and inspect relationships across clusters.
-- **Color-Coded Legend:**
-  - 🟡 **Yellow:** Target Seed
-  - 🔵 **Cyan:** Online Handles & Identities
-  - 🟢 **Green:** Discovered Social Profiles & Phone
-  - 🔷 **Blue:** Domains, Subdomains & Reverse DNS
-  - 🟠 **Orange:** IP Addresses
-  - 🔴 **Red:** Open Ports & Vulnerabilities (CVEs)
-  - 🟣 **Purple:** Cloud Storage Assets
-- **Zero Local Server Required:** Open the generated `visual_graph.html` directly in Chrome, Firefox, Safari, or mobile browsers via `file:///path/to/visual_graph.html`.
+- **Physics-Based Force Simulation**: Nodes dynamically adjust and cluster based on entity correlations.
+- **Draggable & Zoomable Canvas**: Pan, inspect, and trace connections between accounts, IPs, and endpoints.
+- **Categorical Node Legend**:
+  - 🟡 **Yellow**: Seed Target
+  - 🔵 **Cyan**: Social Profiles & Discovered Usernames
+  - 🟢 **Green**: Phone Numbers & Identities
+  - 🔷 **Blue**: Domains, Subdomains & CNAME Records
+  - 🟠 **Orange**: IP Addresses & Geolocation
+  - 🔴 **Red**: Open Ports, CVE Vulnerabilities & Infostealer Infections
+  - 🟣 **Purple**: Cloud Storage Buckets
+- **Zero Local Web Server**: Double-click or open directly in any browser: `file:///path/to/results/.../visual_graph.html`.
 
 ---
 
-## 📱 Termux / Android Optimization
+## 🧪 Comprehensive Unit Testing
 
-In Android Termux environments, `/etc/resolv.conf` does not exist by default, which causes standard DNS lookups in many tools to fail.
+NexusOSINT comes equipped with an automated unit test suite covering 100% of core offline functionality and intelligence modules:
 
-NexusOSINT includes a custom DNS Resolver engine ([`resolver.py`](nexus_osint/resolver.py)) that automatically falls back to hardened public DNS providers (`1.1.1.1`, `8.8.8.8`, `9.9.9.9`), ensuring 100% reliable name resolution on mobile devices without root privileges.
+```bash
+# Run all tests
+python3 -m unittest discover tests
+```
+
+```text
+......................................
+----------------------------------------------------------------------
+Ran 38 tests in 1.100s
+
+OK
+```
 
 ---
 
 ## 🛡️ Security & OPSEC
 
-Please review our [SECURITY.md](SECURITY.md) for information regarding vulnerability reporting, supported versions, and operational security recommendations.
-
-> [!IMPORTANT]
-> NexusOSINT is developed strictly for authorized security assessments, defensive telemetry, digital investigations, and open-source intelligence research. Always obtain authorization before evaluating third-party infrastructure.
+- **Authorized Use Only**: NexusOSINT is designed for legitimate cybersecurity research, authorized red/blue teaming, digital forensics, defensive exposure management, and educational purposes.
+- **Zero Third-Party Telemetry**: NexusOSINT contains no telemetry, tracking scripts, or analytics. Your scans remain private on your local machine.
+- Refer to [SECURITY.md](SECURITY.md) for vulnerability reporting guidelines.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions from the open-source security community are warmly welcomed! Please check our [CONTRIBUTING.md](CONTRIBUTING.md) for pull request guidelines, coding standards, and issue reporting.
+Contributions, bug reports, and suggestions are welcome!
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'feat: add AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ---
 
-## 👤 Author & Credits
+## 👤 Author & Maintainer
 
 <div align="center">
 
-Developed and maintained with ❤️ by:
+Developed with passion by:
 
 ### **Toufique Zaman Topu**
-**GitHub:** [@zaman-topu](https://github.com/zaman-topu)
+**GitHub:** [@Zaman-Topu](https://github.com/Zaman-Topu)  
+**Email:** [topu7252@gmail.com](mailto:topu7252@gmail.com)
 
-[![Follow on GitHub](https://img.shields.io/github/followers/zaman-topu?label=Follow%20%40zaman--topu&style=social)](https://github.com/zaman-topu)
+[![Follow @Zaman-Topu](https://img.shields.io/github/followers/Zaman-Topu?label=Follow%20%40Zaman--Topu&style=social)](https://github.com/Zaman-Topu)
 
-*Special thanks to the global OSINT community and open-source intelligence maintainers.*
+⭐ **If you find NexusOSINT helpful, please consider giving it a star on GitHub!** ⭐
 
 </div>
 
@@ -262,8 +354,8 @@ Developed and maintained with ❤️ by:
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for complete details.
+Distributed under the **MIT License**. See [LICENSE](LICENSE) for more information.
 
 <div align="center">
-  <sub>NexusOSINT © 2026 Toufique Zaman Topu (zaman-topu). All rights reserved.</sub>
+  <sub>NexusOSINT © 2026 Toufique Zaman Topu. All rights reserved.</sub>
 </div>
