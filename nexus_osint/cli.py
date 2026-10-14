@@ -34,11 +34,16 @@ from nexus_osint.modules.infostealer_recon import (
     query_hudson_rock_email,
 )
 from nexus_osint.modules.ip_recon import analyze_ip
+from nexus_osint.modules.mac_recon import analyze_mac
 from nexus_osint.modules.passive_urls import analyze_passive_urls
 from nexus_osint.modules.phone_recon import analyze_phone
+from nexus_osint.modules.reverse_img_recon import analyze_reverse_image
 from nexus_osint.modules.search_recon import analyze_search
 from nexus_osint.modules.shodan_recon import analyze_shodan
+from nexus_osint.modules.ssl_recon import analyze_ssl
+from nexus_osint.modules.telegram_recon import analyze_telegram
 from nexus_osint.modules.username_recon import analyze_username
+from nexus_osint.modules.wayback_recon import analyze_wayback
 from nexus_osint.ui import (
     console,
     log_error,
@@ -111,6 +116,21 @@ def run_and_save_scan(
     elif mode_lower in ("search", "dork", "engines", "web"):
         data = analyze_search(target, timeout=timeout)
 
+    elif mode_lower in ("telegram", "tg"):
+        data = analyze_telegram(target, timeout=timeout)
+
+    elif mode_lower in ("mac", "oui", "bssid"):
+        data = analyze_mac(target, timeout=timeout)
+
+    elif mode_lower in ("reverse-img", "reverseimg", "image-pivot", "imgpivot"):
+        data = analyze_reverse_image(target, timeout=timeout)
+
+    elif mode_lower in ("wayback", "archive", "history-web"):
+        data = analyze_wayback(target, timeout=timeout)
+
+    elif mode_lower in ("ssl", "tls", "cert"):
+        data = analyze_ssl(target, timeout=timeout)
+
     else:
         log_error(f"Unknown scan module: {scan_mode}")
         return {}
@@ -143,13 +163,19 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
         console.print("  [bold cyan][12][/bold cyan] 🦠 [white]Infostealer Threat Intel[/white]  [dim](Hudson Rock malware compromises for email or domain)[/dim]")
         console.print("  [bold red][13][/bold red] 🧅 [bold red]Dark Web & Tor Intel[/bold red]     [dim](Tor66 .onion hidden services, mirrors & paste leaks)[/dim]")
         console.print("  [bold cyan][14][/bold cyan] 🔍 [white]Multi-Search & Dorking[/white]   [dim](DuckDuckGo web index, entities & automated dorking)[/dim]")
-        console.print("  [bold cyan][15][/bold cyan] 📁 [bold yellow]View Saved Case Folders[/bold yellow] [dim](Browse past targets, folders & reports)[/dim]")
+        console.print("  [bold cyan][15][/bold cyan] 💬 [white]Telegram Intelligence[/white]    [dim](Channel telemetry, subscribers, bio & public posts)[/dim]")
+        console.print("  [bold cyan][16][/bold cyan] 📡 [white]MAC Address & OUI[/white]        [dim](IEEE vendor lookup, unicast/multicast, random MAC)[/dim]")
+        console.print("  [bold cyan][17][/bold cyan] 🖼️  [white]Reverse Image Pivot[/white]      [dim](Multi-engine visual search: Lens, Yandex, Bing)[/dim]")
+        console.print("  [bold cyan][18][/bold cyan] 🕰️  [white]Wayback Machine[/white]          [dim](Deleted pages, historical snapshots & timeline)[/dim]")
+        console.print("  [bold cyan][19][/bold cyan] 🔐 [white]SSL/TLS & SAN Pivot[/white]      [dim](Certificate forensics, sibling domains & ciphers)[/dim]")
+        console.print("  [bold cyan][20][/bold cyan] 📁 [bold yellow]View Saved Case Folders[/bold yellow] [dim](Browse past targets, folders & reports)[/dim]")
         console.print("  [bold cyan][0][/bold cyan] 🚪 [white]Exit NexusOSINT[/white]")
         console.print()
 
+        choices_list = [str(i) for i in range(1, 21)] + ["0"]
         choice = Prompt.ask(
             "[bold green]nexusosint[/bold green] [bold cyan]>[/bold cyan]",
-            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "0"],
+            choices=choices_list,
             default="1",
         )
 
@@ -228,6 +254,31 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
                 run_and_save_scan("search", target.strip(), timeout=timeout)
 
         elif choice == "15":
+            target = Prompt.ask("\nEnter Telegram username handle or channel (e.g. durov or @telegram)")
+            if target.strip():
+                run_and_save_scan("telegram", target.strip(), timeout=timeout)
+
+        elif choice == "16":
+            target = Prompt.ask("\nEnter MAC address or BSSID (e.g. 00:1A:2B:3C:4D:5E)")
+            if target.strip():
+                run_and_save_scan("mac", target.strip(), timeout=timeout)
+
+        elif choice == "17":
+            target = Prompt.ask("\nEnter local image file path or remote image URL for visual reverse search")
+            if target.strip():
+                run_and_save_scan("reverse-img", target.strip(), timeout=timeout)
+
+        elif choice == "18":
+            target = Prompt.ask("\nEnter domain name to time travel via Wayback Machine (e.g. example.com)")
+            if target.strip():
+                run_and_save_scan("wayback", target.strip(), timeout=timeout)
+
+        elif choice == "19":
+            target = Prompt.ask("\nEnter domain or host for SSL/TLS certificate & SAN audit (e.g. example.com)")
+            if target.strip():
+                run_and_save_scan("ssl", target.strip(), timeout=timeout)
+
+        elif choice == "20":
             view_cases_interactive_menu()
 
         console.print()
@@ -327,10 +378,30 @@ Examples:
     p_search = subparsers.add_parser("search", aliases=["dork", "engines", "web"], parents=[opts_parent], help="Multi-search engine intelligence & automated OSINT Google/Bing dorking")
     p_search.add_argument("target", help="Search query, domain, or handle")
 
-    # 15. 'cases' command
+    # 15. 'telegram' command
+    p_tg = subparsers.add_parser("telegram", aliases=["tg"], parents=[opts_parent], help="Telegram channel, community & user intelligence")
+    p_tg.add_argument("target", help="Telegram handle (e.g. durov or @telegram)")
+
+    # 16. 'mac' command
+    p_mac = subparsers.add_parser("mac", aliases=["oui", "bssid"], parents=[opts_parent], help="MAC address & IoT hardware OUI vendor resolver")
+    p_mac.add_argument("target", help="MAC address (e.g. 00:1A:2B:3C:4D:5E)")
+
+    # 17. 'reverse-img' command
+    p_rev_img = subparsers.add_parser("reverse-img", aliases=["reverseimg", "image-pivot", "imgpivot"], parents=[opts_parent], help="Multi-engine reverse image search pivot (Lens, Yandex, Bing)")
+    p_rev_img.add_argument("target", help="Local image file path or remote image URL")
+
+    # 18. 'wayback' command
+    p_wb = subparsers.add_parser("wayback", aliases=["archive", "history-web"], parents=[opts_parent], help="Wayback Machine historical snapshot recovery & time travel")
+    p_wb.add_argument("target", help="Target domain or URL (e.g. example.com)")
+
+    # 19. 'ssl' command
+    p_ssl = subparsers.add_parser("ssl", aliases=["tls", "cert"], parents=[opts_parent], help="SSL/TLS certificate forensics & SAN sibling domain pivoting")
+    p_ssl.add_argument("target", help="Target domain or host (e.g. example.com)")
+
+    # 20. 'cases' command
     subparsers.add_parser("cases", aliases=["reports", "list"], parents=[opts_parent], help="Browse and inspect saved target case folders")
 
-    # 16. 'menu' command
+    # 21. 'menu' command
     subparsers.add_parser("menu", parents=[opts_parent], help="Launch interactive terminal menu")
 
     # TOP-LEVEL FLAG COMPATIBILITY (e.g. nexusosint -i 1.1.1.1, --dossier target, etc.)
@@ -346,6 +417,11 @@ Examples:
     parser.add_argument("--stealer", help="Hudson Rock infostealer malware infection lookup (email or domain)")
     parser.add_argument("--darkweb", help="Dark Web (.onion) hidden services & paste dumps")
     parser.add_argument("--search", help="Multi-search engine query & OSINT Google/Bing dorks")
+    parser.add_argument("--telegram", help="Telegram channel, community & user intelligence")
+    parser.add_argument("--mac", help="MAC address & IoT hardware OUI vendor lookup")
+    parser.add_argument("--reverse-img", dest="reverse_img", help="Multi-engine reverse image search pivot (Lens, Yandex, Bing)")
+    parser.add_argument("--wayback", help="Wayback Machine historical snapshot recovery")
+    parser.add_argument("--ssl", help="SSL/TLS certificate forensics & SAN domain pivoting")
     parser.add_argument("--cloud", help="Company keyword to hunt for exposed storage buckets")
     parser.add_argument("--urls", help="Target domain for historical URLs & passive secrets")
     parser.add_argument("--exif", help="Local image file path or image URL for EXIF & GPS")
@@ -414,6 +490,11 @@ def main():
         ("stealer", args.stealer),
         ("darkweb", args.darkweb),
         ("search", args.search),
+        ("telegram", args.telegram),
+        ("mac", args.mac),
+        ("reverse-img", getattr(args, "reverse_img", None)),
+        ("wayback", args.wayback),
+        ("ssl", args.ssl),
     ]
 
     for mode, target_val in flag_scans:

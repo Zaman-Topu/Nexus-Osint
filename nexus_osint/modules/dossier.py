@@ -17,11 +17,16 @@ from nexus_osint.modules.email_recon import analyze_email, validate_email_format
 from nexus_osint.modules.exif_recon import analyze_image_exif
 from nexus_osint.modules.github_recon import analyze_github
 from nexus_osint.modules.ip_recon import analyze_ip, is_ip, resolve_domain_to_ip
+from nexus_osint.modules.mac_recon import analyze_mac, normalize_mac_address
 from nexus_osint.modules.passive_urls import analyze_passive_urls
 from nexus_osint.modules.phone_recon import analyze_phone
+from nexus_osint.modules.reverse_img_recon import analyze_reverse_image
 from nexus_osint.modules.search_recon import analyze_search
 from nexus_osint.modules.shodan_recon import analyze_shodan
+from nexus_osint.modules.ssl_recon import analyze_ssl
+from nexus_osint.modules.telegram_recon import analyze_telegram
 from nexus_osint.modules.username_recon import analyze_username
+from nexus_osint.modules.wayback_recon import analyze_wayback
 from nexus_osint.ui import (
     console,
     log_error,
@@ -81,6 +86,10 @@ def detect_target_type(target: str) -> str:
     if is_ip(target):
         return "ip"
 
+    # MAC address check:
+    if normalize_mac_address(target) and (":" in target or "-" in target or "." in target):
+        return "mac"
+
     # Phone number check:
     # International prefix ('+', '00'), or string without alphabetic characters containing at least 7 digits
     raw_digits = re.sub(r"\D", "", target)
@@ -134,6 +143,11 @@ def run_master_dossier(
         "exif_recon": None,
         "darkweb_recon": None,
         "search_recon": None,
+        "telegram_recon": None,
+        "mac_recon": None,
+        "reverse_img_recon": None,
+        "wayback_recon": None,
+        "ssl_recon": None,
     }
 
     graph = DossierGraphBuilder(target_seed)
@@ -257,12 +271,22 @@ def run_master_dossier(
         git_data = analyze_github(clean_user, timeout=timeout)
         dossier["github_recon"] = git_data
 
+        # 3. Telegram Channel & Community Recon
+        log_info(f"Phase 3: Inspecting Telegram channels & communities for @{clean_user}...")
+        tg_data = analyze_telegram(clean_user, timeout=timeout)
+        dossier["telegram_recon"] = tg_data
+        if tg_data.get("found"):
+            tg_node = f"tg_{clean_user}"
+            t_type = tg_data.get("type", "Entity")
+            graph.add_node(tg_node, f"Telegram: @{clean_user} ({t_type})", color="#0ea5e9", size=16)
+            graph.add_edge(user_node, tg_node, "Telegram Channel/Community")
+
         # Pivot to leaked commit emails
         commit_emails = git_data.get("commit_emails", [])
         real_emails = [e["email"] for e in commit_emails if not e["is_noreply"]]
         if real_emails:
             leaked_email = real_emails[0]
-            log_info(f"Phase 3: Pivoting to extracted personal commit email: {leaked_email}...")
+            log_info(f"Phase 4: Pivoting to extracted personal commit email: {leaked_email}...")
             email_data = analyze_email(leaked_email, timeout=timeout)
             dossier["email_recon"] = email_data
 
@@ -352,6 +376,32 @@ def run_master_dossier(
         passive_data = analyze_passive_urls(clean_dom, limit=100, timeout=timeout)
         dossier["passive_urls"] = passive_data
 
+        # 5. SSL / TLS Certificate Forensics & SAN Domain Pivoting
+        log_info(f"Phase 5: Inspecting SSL/TLS certificates and Subject Alternative Names (SAN)...")
+        ssl_data = analyze_ssl(clean_dom, timeout=timeout)
+        dossier["ssl_recon"] = ssl_data
+        if ssl_data.get("connected"):
+            iss = ssl_data.get("issuer_cn") or "TLS Certificate"
+            ssl_node = f"ssl_{clean_dom}"
+            graph.add_node(ssl_node, f"SSL: {iss[:20]}", color="#14b8a6", size=15)
+            graph.add_edge(dom_node, ssl_node, "X.509 Certificate")
+            for san in ssl_data.get("san_domains", [])[:6]:
+                if san != clean_dom:
+                    san_node = f"san_{san}"
+                    graph.add_node(san_node, f"SAN: {san}", color="#06b6d4", size=13)
+                    graph.add_edge(ssl_node, san_node, "Subject Alternative Name")
+
+        # 6. Wayback Machine Historical Time Travel
+        log_info(f"Phase 6: Recovering historical snapshots & defunct assets from Wayback Machine...")
+        wb_data = analyze_wayback(clean_dom, timeout=timeout)
+        dossier["wayback_recon"] = wb_data
+        if wb_data.get("has_archives"):
+            wb_node = f"wb_{clean_dom}"
+            earliest_yr = wb_data.get("earliest_snapshot_date", "")[:4]
+            lifespan = wb_data.get("archive_lifespan", "")
+            graph.add_node(wb_node, f"Wayback ({earliest_yr}+ / {lifespan})", color="#8b5cf6", size=15)
+            graph.add_edge(dom_node, wb_node, "Historical Snapshot")
+
     # -------------------------------------------------------------
     # VECTOR: IP
     # -------------------------------------------------------------
@@ -433,6 +483,33 @@ def run_master_dossier(
             gps_node = f"gps_{lat}_{lon}"
             graph.add_node(gps_node, f"GPS: {lat}, {lon}", color="#ef4444", size=18, shape="diamond")
             graph.add_edge(exif_node, gps_node, "Coordinates")
+
+        # Multi-Engine Reverse Image Pivot
+        log_info(f"Phase 2: Generating multi-engine visual search links & file fingerprints...")
+        rev_data = analyze_reverse_image(target_seed, timeout=timeout)
+        dossier["reverse_img_recon"] = rev_data
+        if rev_data.get("md5"):
+            hash_node = f"hash_{rev_data['md5'][:8]}"
+            graph.add_node(hash_node, f"MD5: {rev_data['md5'][:8]}...", color="#f43f5e", size=14)
+            graph.add_edge(exif_node, hash_node, "File Hash & Engines")
+
+    # -------------------------------------------------------------
+    # VECTOR: MAC ADDRESS & HARDWARE OUI
+    # -------------------------------------------------------------
+    elif target_type == "mac":
+        log_info(f"Phase 1: Resolving MAC address and vendor telemetry: {target_seed}...")
+        mac_data = analyze_mac(target_seed, timeout=timeout)
+        dossier["mac_recon"] = mac_data
+
+        norm = mac_data.get("mac_colon") or target_seed
+        vendor = mac_data.get("vendor") or "Unknown Vendor"
+        mac_node = f"mac_{norm}"
+        graph.add_node(mac_node, f"MAC: {norm}", color="#6366f1", size=22)
+        graph.add_edge("target_seed", mac_node, "Hardware MAC")
+
+        ven_node = f"vendor_{vendor[:20]}"
+        graph.add_node(ven_node, f"Vendor: {vendor[:25]}", color="#8b5cf6", size=16)
+        graph.add_edge(mac_node, ven_node, "OUI Manufacturer")
 
     # -------------------------------------------------------------
     # CROSS-VECTOR: DARK WEB & MULTI-SEARCH INTELLIGENCE

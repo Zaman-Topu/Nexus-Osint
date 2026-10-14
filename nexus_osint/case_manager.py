@@ -243,6 +243,52 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             for d in dorks[:4]:
                 lines.append(f"    - [{d.get('category')}]: {d.get('dork')[:60]}")
 
+    elif mode_lower in ("telegram", "tg"):
+        lines.append(f" • Telegram Handle : @{data.get('handle', target)}")
+        lines.append(f" • Entity Title    : {data.get('title', 'N/A')}")
+        lines.append(f" • Entity Type     : {data.get('type', 'N/A')}")
+        lines.append(f" • Members / Subs  : {data.get('members_metric', 'N/A')}")
+        lines.append(f" • Verified Status : {'Yes (Official)' if data.get('verified') else 'No'}")
+        lines.append(f" • Direct Web Link : {data.get('channel_url', 'N/A')}")
+
+    elif mode_lower in ("mac", "oui", "bssid"):
+        lines.append(f" • MAC Address     : {data.get('mac_colon', target)}")
+        lines.append(f" • Manufacturer    : {data.get('vendor', 'N/A')}")
+        lines.append(f" • OUI Prefix      : {data.get('oui_prefix', 'N/A')}")
+        lines.append(f" • Transmission    : {data.get('cast_type', 'N/A')}")
+        lines.append(f" • Administration  : {data.get('admin_type', 'N/A')}")
+
+    elif mode_lower in ("reverse-img", "reverseimg", "image-pivot", "imgpivot"):
+        lines.append(f" • Image Target    : {data.get('target', target)}")
+        if data.get("md5"):
+            lines.append(f" • MD5 Fingerprint : {data.get('md5')}")
+            lines.append(f" • SHA256 Hash     : {data.get('sha256')[:32]}...")
+        lines.append(f" • Visual Engines  : {len(data.get('engines', []))} reverse search link(s) ready")
+        for eng in data.get("engines", [])[:4]:
+            lines.append(f"    - [{eng.get('engine')}]: {eng.get('url')[:65]}")
+
+    elif mode_lower in ("wayback", "archive", "history-web"):
+        lines.append(f" • Target Domain   : {data.get('domain', target)}")
+        lines.append(f" • Earliest Archive: {data.get('earliest_snapshot_date', 'N/A')}")
+        lines.append(f" • Latest Archive  : {data.get('latest_snapshot_date', 'N/A')}")
+        lines.append(f" • Archive Lifespan: {data.get('archive_lifespan', 'N/A')}")
+        lines.append(f" • First Snapshot  : {data.get('earliest_snapshot_url', 'N/A')}")
+        lines.append(f" • Calendar View   : {data.get('calendar_url', 'N/A')}")
+
+    elif mode_lower in ("ssl", "tls", "cert"):
+        lines.append(f" • Target Host:Port: {data.get('host', target)}:{data.get('port', 443)}")
+        lines.append(f" • Subject CN      : {data.get('subject_cn', 'N/A')}")
+        days_rem = data.get("days_remaining", 0)
+        validity = "EXPIRED" if data.get("is_expired") else f"VALID ({days_rem} days remaining)"
+        lines.append(f" • Validity Status : {validity}")
+        lines.append(f" • Self-Signed Cert: {'Yes' if data.get('is_self_signed') else 'No'}")
+        lines.append(f" • TLS / Cipher    : {data.get('tls_version', 'N/A')} ({data.get('cipher_suite', 'N/A')})")
+        sans = data.get("san_domains", [])
+        if sans:
+            lines.append(f" • Discovered SANs : {len(sans)} domain(s)")
+            for s in sans[:5]:
+                lines.append(f"    - {s}")
+
     elif mode_lower in ("all", "dossier"):
         lines.append(f" • Seed Target     : {data.get('target_seed', target)}")
         lines.append(f" • Detected Vector : {data.get('seed_type', 'N/A').upper()}")
@@ -309,6 +355,28 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             sr_cnt = sr_data.get("total_results", 0)
             drk_cnt = len(sr_data.get("osint_dorks", []))
             lines.append(f" • 🔍 Search Engines : {sr_cnt} web hits, {drk_cnt} tailored OSINT dorks")
+
+        if data.get("wayback_recon"):
+            wb_data = data["wayback_recon"]
+            lines.append(f" • 🕰️ Wayback Machine: {wb_data.get('earliest_snapshot_date', 'N/A')} to {wb_data.get('latest_snapshot_date', 'N/A')} ({wb_data.get('archive_lifespan', 'N/A')})")
+
+        if data.get("ssl_recon"):
+            ssl_data = data["ssl_recon"]
+            san_count = len(ssl_data.get("san_domains", []))
+            lines.append(f" • 🔐 SSL Certificate: {ssl_data.get('subject_cn', 'N/A')} ({ssl_data.get('tls_version', 'N/A')} - {san_count} SAN domains)")
+
+        if data.get("telegram_recon"):
+            tg_data = data["telegram_recon"]
+            if tg_data.get("found"):
+                lines.append(f" • 💬 Telegram Match : @{tg_data.get('handle')} ({tg_data.get('title')} - {tg_data.get('members_metric')})")
+
+        if data.get("mac_recon"):
+            mac_data = data["mac_recon"]
+            lines.append(f" • 🏷️ MAC / Hardware : {mac_data.get('mac_colon', 'N/A')} ({mac_data.get('vendor', 'N/A')})")
+
+        if data.get("reverse_img_recon"):
+            r_data = data["reverse_img_recon"]
+            lines.append(f" • 🖼️ Reverse Image  : {len(r_data.get('engines', []))} visual search engines prepared")
 
         if data.get("ip_recon"):
             i_data = data["ip_recon"]
