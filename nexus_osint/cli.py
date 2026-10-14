@@ -22,6 +22,7 @@ from nexus_osint.case_manager import (
     view_cases_interactive_menu,
 )
 from nexus_osint.modules.cloud_recon import analyze_cloud_buckets
+from nexus_osint.modules.darkweb_recon import analyze_darkweb
 from nexus_osint.modules.domain_recon import analyze_domain
 from nexus_osint.modules.dossier import run_master_dossier
 from nexus_osint.modules.email_recon import analyze_email
@@ -35,6 +36,7 @@ from nexus_osint.modules.infostealer_recon import (
 from nexus_osint.modules.ip_recon import analyze_ip
 from nexus_osint.modules.passive_urls import analyze_passive_urls
 from nexus_osint.modules.phone_recon import analyze_phone
+from nexus_osint.modules.search_recon import analyze_search
 from nexus_osint.modules.shodan_recon import analyze_shodan
 from nexus_osint.modules.username_recon import analyze_username
 from nexus_osint.ui import (
@@ -103,6 +105,12 @@ def run_and_save_scan(
     elif mode_lower in ("stealer", "infostealer", "cavalier"):
         data = analyze_infostealer(target, timeout=timeout)
 
+    elif mode_lower in ("darkweb", "onion", "tor", "darknet"):
+        data = analyze_darkweb(target, timeout=timeout)
+
+    elif mode_lower in ("search", "dork", "engines", "web"):
+        data = analyze_search(target, timeout=timeout)
+
     else:
         log_error(f"Unknown scan module: {scan_mode}")
         return {}
@@ -133,13 +141,15 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
         console.print("  [bold cyan][10][/bold cyan] 🕷️ [white]Passive Historical URLs[/white] [dim](AlienVault OTX archive endpoints & secrets)[/dim]")
         console.print("  [bold cyan][11][/bold cyan] 📸 [white]Image EXIF & Forensics[/white]  [dim](Camera specs & GPS coordinates with map links)[/dim]")
         console.print("  [bold cyan][12][/bold cyan] 🦠 [white]Infostealer Threat Intel[/white]  [dim](Hudson Rock malware compromises for email or domain)[/dim]")
-        console.print("  [bold cyan][13][/bold cyan] 📁 [bold yellow]View Saved Case Folders[/bold yellow] [dim](Browse past targets, folders & reports)[/dim]")
+        console.print("  [bold red][13][/bold red] 🧅 [bold red]Dark Web & Tor Intel[/bold red]     [dim](Tor66 .onion hidden services, mirrors & paste leaks)[/dim]")
+        console.print("  [bold cyan][14][/bold cyan] 🔍 [white]Multi-Search & Dorking[/white]   [dim](DuckDuckGo web index, entities & automated dorking)[/dim]")
+        console.print("  [bold cyan][15][/bold cyan] 📁 [bold yellow]View Saved Case Folders[/bold yellow] [dim](Browse past targets, folders & reports)[/dim]")
         console.print("  [bold cyan][0][/bold cyan] 🚪 [white]Exit NexusOSINT[/white]")
         console.print()
 
         choice = Prompt.ask(
             "[bold green]nexusosint[/bold green] [bold cyan]>[/bold cyan]",
-            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "0"],
+            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "0"],
             default="1",
         )
 
@@ -208,6 +218,16 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
                 run_and_save_scan("stealer", target.strip(), timeout=timeout)
 
         elif choice == "13":
+            target = Prompt.ask("\nEnter search term, username, domain, or brand for Dark Web intel")
+            if target.strip():
+                run_and_save_scan("darkweb", target.strip(), timeout=timeout)
+
+        elif choice == "14":
+            target = Prompt.ask("\nEnter query, domain, or handle for Multi-Search recon & dorking")
+            if target.strip():
+                run_and_save_scan("search", target.strip(), timeout=timeout)
+
+        elif choice == "15":
             view_cases_interactive_menu()
 
         console.print()
@@ -299,10 +319,18 @@ Examples:
     p_stealer = subparsers.add_parser("stealer", aliases=["infostealer", "cavalier"], parents=[opts_parent], help="Hudson Rock infostealer malware infection lookup (email or domain)")
     p_stealer.add_argument("target", help="Target email address or corporate domain")
 
-    # 13. 'cases' command
+    # 13. 'darkweb' command
+    p_darkweb = subparsers.add_parser("darkweb", aliases=["onion", "tor", "darknet"], parents=[opts_parent], help="Dark Web (.onion) hidden services & paste dump threat intelligence")
+    p_darkweb.add_argument("target", help="Target search term, organization, handle, or brand")
+
+    # 14. 'search' command
+    p_search = subparsers.add_parser("search", aliases=["dork", "engines", "web"], parents=[opts_parent], help="Multi-search engine intelligence & automated OSINT Google/Bing dorking")
+    p_search.add_argument("target", help="Search query, domain, or handle")
+
+    # 15. 'cases' command
     subparsers.add_parser("cases", aliases=["reports", "list"], parents=[opts_parent], help="Browse and inspect saved target case folders")
 
-    # 14. 'menu' command
+    # 16. 'menu' command
     subparsers.add_parser("menu", parents=[opts_parent], help="Launch interactive terminal menu")
 
     # TOP-LEVEL FLAG COMPATIBILITY (e.g. nexusosint -i 1.1.1.1, --dossier target, etc.)
@@ -316,6 +344,8 @@ Examples:
     parser.add_argument("-p", "--phone", help="Target phone number for carrier & location")
     parser.add_argument("-r", "--region", help="Default two-letter ISO country code for phone scans (e.g. BD, US, GB)")
     parser.add_argument("--stealer", help="Hudson Rock infostealer malware infection lookup (email or domain)")
+    parser.add_argument("--darkweb", help="Dark Web (.onion) hidden services & paste dumps")
+    parser.add_argument("--search", help="Multi-search engine query & OSINT Google/Bing dorks")
     parser.add_argument("--cloud", help="Company keyword to hunt for exposed storage buckets")
     parser.add_argument("--urls", help="Target domain for historical URLs & passive secrets")
     parser.add_argument("--exif", help="Local image file path or image URL for EXIF & GPS")
@@ -382,6 +412,8 @@ def main():
         ("urls", args.urls),
         ("exif", args.exif),
         ("stealer", args.stealer),
+        ("darkweb", args.darkweb),
+        ("search", args.search),
     ]
 
     for mode, target_val in flag_scans:

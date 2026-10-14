@@ -5,7 +5,7 @@
 ### *Advanced Modular Open-Source Intelligence (OSINT) & Autonomous Threat Intelligence Framework*
 
 [![GitHub Release](https://img.shields.io/badge/release-v2.0.0-0ea5e9?style=for-the-badge&logo=github)](https://github.com/Zaman-Topu/Nexus-Osint)
-[![Tests](https://img.shields.io/badge/tests-38%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-47%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Termux%20(Android)%20%7C%20Linux-f59e0b?style=for-the-badge&logo=linux&logoColor=white)](https://termux.dev)
@@ -14,7 +14,7 @@
 
 <p align="center">
   <b>A blazing-fast, unified cyber reconnaissance and digital forensics suite engineered natively for Linux and Android Termux.</b><br>
-  Conduct comprehensive multi-vector investigations across <b>12 specialized modules</b> with zero paid API keys, automated multi-hop pivoting, interactive HTML entity graphs, and organized case management.
+  Conduct comprehensive multi-vector investigations across <b>14 specialized intelligence modules</b> with zero paid API keys, automated multi-hop pivoting, interactive HTML entity graphs, and organized case management.
 </p>
 
 ---
@@ -142,6 +142,16 @@ NexusOSINT v2.0.0 bundles **12 specialized intelligence vectors** running comple
 ### 12. 📸 Image EXIF Metadata & Geolocation (`exif`)
 - Extracts camera make/model, shutter/lens parameters, software version, original capture timestamps, and translates GPS coordinates into direct Google Maps / OpenStreetMap hyperlinks.
 
+### 13. 🧅 Dark Web & Tor Hidden Service Intelligence (`darkweb`, `onion`)
+- **Tor66 Hidden Service Discovery**: Interrogates the Tor66 darknet index to locate active `.onion` services tied to target domains, usernames, or organizations.
+- **Clearnet Tor2web Mirror Resolution**: Converts discovered `.onion` addresses into direct `.onion.pet` clearnet gateway links, allowing mobile Android/Termux inspection without requiring a running Tor daemon.
+- **Paste Dump & Gateway Crawling**: Automatically correlates public breach leaks across Pastebin, Rentry, JustPasteIt, and darknet gateways.
+
+### 14. 🔍 Multi-Search Engine Reconnaissance & Automated Dorking (`search`, `dork`)
+- **DuckDuckGo Web Harvesting**: Gathers search engine listings with extracted destination URLs, snippets, and domain metrics without API keys.
+- **Encyclopedic Knowledge Entities**: Queries DuckDuckGo Instant Answer API for official corporate records, Wikipedia abstracts, and knowledge panels.
+- **Automated OSINT Google & Bing Dork Matrix**: Auto-generates customized one-click dork queries for sensitive file disclosures (`ext:env`, `ext:sql`), exposed admin portals, directory listings, sensitive documents, and leaked source code.
+
 ---
 
 ## 🚀 Quick Installation
@@ -233,6 +243,14 @@ nexusosint urls targetcorp.com
 # 📸 Image EXIF Forensics & GPS Mapping
 nexusosint exif /path/to/evidence.jpg
 
+# 🧅 Dark Web (.onion) Intelligence & Paste Dumps
+nexusosint darkweb targetcorp
+nexusosint darkweb "username_or_brand"
+
+# 🔍 Multi-Search Engine Intel & Automated OSINT Dorking
+nexusosint search targetcorp.com
+nexusosint search octocat
+
 # 📁 Interactive Case Manager & Past Reports Browser
 nexusosint cases
 
@@ -248,6 +266,8 @@ nexusosint menu
 | `-c` | `--concurrency` | Concurrency worker count for asynchronous operations | `15` |
 | `-r` | `--region` | Country code for phone number normalization | `Auto` |
 | | `--stealer` | Trigger Hudson Rock infostealer lookup in email/domain mode | `Auto` |
+| | `--darkweb` | Execute Dark Web (.onion) and paste dump threat scan | `Auto` |
+| | `--search` | Execute multi-search engine queries & automated dork matrix | `Auto` |
 | | `--no-banner` | Suppress Rich ASCII banner for clean output piping | `False` |
 | | `--no-save` | Display results in terminal only (skip writing files to disk) | `False` |
 

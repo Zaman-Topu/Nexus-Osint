@@ -212,6 +212,30 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             for s in sens[:5]:
                 lines.append(f"    - [{s.get('keywords')}]: {s.get('url')[:65]}")
 
+    elif mode_lower in ("darkweb", "onion", "tor", "darknet"):
+        lines.append(f" • Target Query     : {data.get('target', target)}")
+        lines.append(f" • Exposure Posture : {data.get('threat_level', 'N/A')}")
+        onions = data.get("onion_services", [])
+        leaks = data.get("gateway_leaks", [])
+        lines.append(f" • Discovered Onion : {len(onions)} hidden service(s)")
+        lines.append(f" • Paste / Gateways : {len(leaks)} leak mention(s)")
+        for on in onions[:5]:
+            lines.append(f"    - [{on.get('title')[:30]}]: {on.get('onion_url')}")
+        for lk in leaks[:3]:
+            lines.append(f"    - [{lk.get('domain')}]: {lk.get('url')[:65]}")
+
+    elif mode_lower in ("search", "dork", "engines", "web"):
+        lines.append(f" • Search Query     : {data.get('query', target)}")
+        lines.append(f" • Web Results      : {data.get('total_results', 0)} hit(s)")
+        kn = data.get("knowledge_entity", {})
+        if kn.get("heading"):
+            lines.append(f" • Knowledge Entity : {kn.get('heading')} - {kn.get('abstract', '')[:60]}...")
+        dorks = data.get("osint_dorks", [])
+        if dorks:
+            lines.append(f" • OSINT Dorks Ready: {len(dorks)} targeted query matrices")
+            for d in dorks[:4]:
+                lines.append(f"    - [{d.get('category')}]: {d.get('dork')[:60]}")
+
     elif mode_lower in ("all", "dossier"):
         lines.append(f" • Seed Target     : {data.get('target_seed', target)}")
         lines.append(f" • Detected Vector : {data.get('seed_type', 'N/A').upper()}")
@@ -263,6 +287,18 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             open_b = [b for b in c_data.get("buckets", []) if "200" in b.get("Status", "")]
             if open_b:
                 lines.append(f" • ⚠️ Open Buckets  : {len(open_b)} publicly exposed bucket(s)!")
+
+        if data.get("darkweb_recon"):
+            dw_data = data["darkweb_recon"]
+            on_count = len(dw_data.get("onion_services", []))
+            lk_count = len(dw_data.get("gateway_leaks", []))
+            lines.append(f" • 🧅 Dark Web Intel : {dw_data.get('threat_level', 'N/A')} ({on_count} .onion, {lk_count} paste mentions)")
+
+        if data.get("search_recon"):
+            sr_data = data["search_recon"]
+            sr_cnt = sr_data.get("total_results", 0)
+            drk_cnt = len(sr_data.get("osint_dorks", []))
+            lines.append(f" • 🔍 Search Engines : {sr_cnt} web hits, {drk_cnt} tailored OSINT dorks")
 
         if data.get("ip_recon"):
             i_data = data["ip_recon"]

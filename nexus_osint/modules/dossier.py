@@ -11,6 +11,7 @@ from nexus_osint.case_manager import create_target_case_folder, print_case_banne
 from nexus_osint.exporter import export_to_json, export_to_markdown
 from nexus_osint.graph_exporter import export_network_graph_html, generate_graph_html
 from nexus_osint.modules.cloud_recon import analyze_cloud_buckets
+from nexus_osint.modules.darkweb_recon import analyze_darkweb
 from nexus_osint.modules.domain_recon import analyze_domain, clean_domain
 from nexus_osint.modules.email_recon import analyze_email, validate_email_format
 from nexus_osint.modules.exif_recon import analyze_image_exif
@@ -18,6 +19,7 @@ from nexus_osint.modules.github_recon import analyze_github
 from nexus_osint.modules.ip_recon import analyze_ip, is_ip, resolve_domain_to_ip
 from nexus_osint.modules.passive_urls import analyze_passive_urls
 from nexus_osint.modules.phone_recon import analyze_phone
+from nexus_osint.modules.search_recon import analyze_search
 from nexus_osint.modules.shodan_recon import analyze_shodan
 from nexus_osint.modules.username_recon import analyze_username
 from nexus_osint.ui import (
@@ -130,6 +132,8 @@ def run_master_dossier(
         "passive_urls": None,
         "phone_recon": None,
         "exif_recon": None,
+        "darkweb_recon": None,
+        "search_recon": None,
     }
 
     graph = DossierGraphBuilder(target_seed)
@@ -420,6 +424,38 @@ def run_master_dossier(
             gps_node = f"gps_{lat}_{lon}"
             graph.add_node(gps_node, f"GPS: {lat}, {lon}", color="#ef4444", size=18, shape="diamond")
             graph.add_edge(exif_node, gps_node, "Coordinates")
+
+    # -------------------------------------------------------------
+    # CROSS-VECTOR: DARK WEB & MULTI-SEARCH INTELLIGENCE
+    # -------------------------------------------------------------
+    if target_type in ("domain", "username", "email", "ip"):
+        log_info(f"Cross-Vector: Probing Dark Web (.onion) indexes & leak dumps for {target_seed}...")
+        darkweb_data = analyze_darkweb(target_seed, timeout=timeout)
+        dossier["darkweb_recon"] = darkweb_data
+
+        if darkweb_data.get("total_hits", 0) > 0:
+            dw_node = f"darkweb_{target_seed}"
+            graph.add_node(dw_node, f"Dark Web: {darkweb_data['total_hits']} Hits", color="#dc2626", size=20, shape="diamond")
+            graph.add_edge("target_seed", dw_node, "Darknet Exposure")
+            for on in darkweb_data.get("onion_services", [])[:5]:
+                on_node = f"onion_{on['domain']}"
+                graph.add_node(on_node, f".onion: {on['title'][:25]}", color="#ef4444", size=13)
+                graph.add_edge(dw_node, on_node, "Hidden Service")
+
+        log_info(f"Cross-Vector: Aggregating Multi-Search Engine intel & generating OSINT dorks...")
+        search_data = analyze_search(target_seed, timeout=timeout)
+        dossier["search_recon"] = search_data
+
+        if search_data.get("total_results", 0) > 0:
+            sr_node = f"search_{target_seed}"
+            graph.add_node(sr_node, f"Search ({search_data['total_results']} Hits)", color="#06b6d4", size=18)
+            graph.add_edge("target_seed", sr_node, "Web Engine Footprint")
+
+        kn = search_data.get("knowledge_entity", {})
+        if kn and kn.get("heading"):
+            kn_node = f"entity_{target_seed}"
+            graph.add_node(kn_node, f"Entity: {kn['heading'][:25]}", color="#3b82f6", size=16)
+            graph.add_edge("target_seed", kn_node, "Knowledge Graph")
 
     # -------------------------------------------------------------
     # AUTOMATED DEDICATED CASE FOLDER & EXPORTS
