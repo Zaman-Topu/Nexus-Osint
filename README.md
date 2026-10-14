@@ -125,7 +125,7 @@ NexusOSINT v2.0.0 bundles **12 specialized intelligence vectors** running comple
 - **Detailed Carrier Telemetry**: Identifies network operator (Robi, Grameenphone, Banglalink, AT&T, Verizon, etc.), line classification (Mobile, Fixed Line, VoIP), geographic region, and timezones.
 
 ### 7. 👤 Deep Username Footprinting (`user`)
-- Asynchronously interrogates 50+ high-traffic developer portals, social networks, gaming communities, and code repositories (GitHub, GitLab, Reddit, Keybase, Steam, Telegram, etc.) with concurrency control.
+- Asynchronously interrogates 75+ high-traffic developer portals, social networks, gaming communities, and code repositories (GitHub, GitLab, Reddit, Keybase, Steam, Telegram, etc.) with concurrency control.
 
 ### 8. 🐙 GitHub Deep Forensics (`github`)
 - Profile extraction, bio metadata, public SSH keys (`.keys`), GPG keys, and commit-level patch scraping to harvest hidden author email addresses from public activity.
@@ -204,7 +204,7 @@ nexusosint stealer victimcorp.com
 # 🌐 Domain Reconnaissance, Passive Subdomains & Takeover Audit
 nexusosint domain target.com
 
-# 👤 Cross-Platform Username Footprinting (50+ sites)
+# 👤 Cross-Platform Username Footprinting (75+ sites)
 nexusosint user octocat
 
 # ✉️ Email Intelligence, Spoofability & Gravatar

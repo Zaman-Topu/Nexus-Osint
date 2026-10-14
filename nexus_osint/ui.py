@@ -11,7 +11,7 @@ from rich import box
 
 console = Console()
 
-BANNER_ART = r"""
+BANNER_WIDE = r"""
  [bold cyan]███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗[/]   [bold magenta]██████╗ ███████╗██╗███╗   ██╗████████╗[/]
  [bold cyan]████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝[/]  [bold magenta]██╔═══██╗██╔════╝██║████╗  ██║╚══██╔══╝[/]
  [bold cyan]██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗[/]  [bold magenta]██║   ██║███████╗██║██╔██╗ ██║   ██║   [/]
@@ -20,14 +20,51 @@ BANNER_ART = r"""
  [bold cyan]╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝[/]   [bold magenta]╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝   ╚═╝   [/]
 """
 
+BANNER_MEDIUM = r"""
+ [bold cyan]███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗[/]
+ [bold cyan]████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝[/]
+ [bold cyan]██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗[/]
+ [bold cyan]██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║[/]
+ [bold cyan]██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║[/]
+ [bold cyan]╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝[/]
+ [bold magenta]██████╗ ███████╗██╗███╗   ██╗████████╗[/]
+ [bold magenta]██╔═══██╗██╔════╝██║████╗  ██║╚══██╔══╝[/]
+ [bold magenta]██║   ██║███████╗██║██╔██╗ ██║   ██║   [/]
+ [bold magenta]██║   ██║╚════██║██║██║╚██╗██║   ██║   [/]
+ [bold magenta]╚██████╔╝███████║██║██║ ╚████║   ██║   [/]
+ [bold magenta] ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝   ╚═╝   [/]
+"""
+
+BANNER_COMPACT = r"""
+ [bold cyan]⚡ ＮＥＸＵＳ  ＯＳＩＮＴ ⚡[/]
+"""
+
+BANNER_ART = BANNER_MEDIUM
 TAGLINE = "[dim white]Advanced Modular Intelligence & Reconnaissance Framework | v2.0.0[/dim white]"
 
 
 def print_banner() -> None:
-    """Print the main application banner."""
-    console.print(BANNER_ART)
+    """Print the main application banner adaptively to prevent line-wrapping on narrow screens."""
+    width = console.width or 80
+    if width >= 86:
+        banner = BANNER_WIDE
+        tag_markup = f"[bold yellow]⚡ NexusOSINT[/bold yellow] - {TAGLINE}\n[dim]Ready for Termux & Linux environments[/dim]"
+    elif width >= 45:
+        banner = BANNER_MEDIUM
+        tag_markup = (
+            "[bold yellow]⚡ NexusOSINT v2.0.0[/bold yellow]\n"
+            "[dim white]Advanced Modular Intelligence Framework[/dim white]\n"
+            "[dim]Ready for Termux & Linux environments[/dim]"
+        )
+    else:
+        banner = BANNER_COMPACT
+        tag_markup = "[bold yellow]⚡ NexusOSINT v2.0.0[/bold yellow]\n[dim]Termux & Linux OSINT[/dim]"
+
+    for line in banner.strip("\n").splitlines():
+        console.print(line, highlight=False)
+
     console.print(Panel(
-        Text.from_markup(f"[bold yellow]⚡ NexusOSINT[/bold yellow] - {TAGLINE}\n[dim]Ready for Termux & Linux environments[/dim]"),
+        Text.from_markup(tag_markup),
         box=box.ROUNDED,
         border_style="cyan"
     ))

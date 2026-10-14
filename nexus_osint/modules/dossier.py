@@ -230,7 +230,7 @@ def run_master_dossier(
         graph.add_edge("target_seed", user_node, "Handle")
 
         # 1. Platform Recon
-        log_info(f"Phase 1: Scanning 50+ platforms for @{clean_user}...")
+        log_info(f"Phase 1: Scanning 75+ platforms for @{clean_user}...")
         user_data = analyze_username(clean_user, timeout=timeout, concurrency=concurrency)
         dossier["username_recon"] = user_data
 

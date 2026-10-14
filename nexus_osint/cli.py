@@ -122,7 +122,7 @@ def interactive_menu(timeout: float = 6.0, concurrency: int = 15) -> None:
         print_banner()
         console.print("[bold yellow]MASTER OSINT SUITE / CAPABILITY SELECTOR[/bold yellow]")
         console.print("  [bold red][1][/bold red] 🎯 [bold red]ALL / MASTER DOSSIER[/bold red]   [dim](Autonomous Chained Multi-Vector Scan + Graph)[/dim]")
-        console.print("  [bold cyan][2][/bold cyan] 👤 [white]Username Intelligence[/white]   [dim](Scan 50+ platforms & social media)[/dim]")
+        console.print("  [bold cyan][2][/bold cyan] 👤 [white]Username Intelligence[/white]   [dim](Scan 75+ platforms & social media)[/dim]")
         console.print("  [bold cyan][3][/bold cyan] 🐙 [white]GitHub Deep Recon[/white]       [dim](Profile, public SSH keys & commit author emails)[/dim]")
         console.print("  [bold cyan][4][/bold cyan] 🌐 [white]Domain Reconnaissance[/white]   [dim](DNS, RDAP, subdomains, security headers)[/dim]")
         console.print("  [bold cyan][5][/bold cyan] 📍 [white]IP Intelligence[/white]         [dim](Geolocation, ASN, reverse DNS, ISP)[/dim]")
@@ -226,7 +226,7 @@ Examples:
   nexusosint all target.com           Run master dossier on domain
   nexusosint ip 1.1.1.1               IP geolocation, ASN, reverse DNS scan
   nexusosint domain example.com       Domain DNS, RDAP, subdomains & headers
-  nexusosint user torvalds            Check username across 50+ platforms
+  nexusosint user torvalds            Check username across 75+ platforms
   nexusosint email user@test.com      Email validation, MX records & Gravatar pivot
   nexusosint phone +14155552671       Phone carrier, country & line type
   nexusosint github torvalds          GitHub profile, SSH keys & commit emails
@@ -263,7 +263,7 @@ Examples:
     p_domain.add_argument("target", help="Target domain (e.g. example.com)")
 
     # 4. 'user' command
-    p_user = subparsers.add_parser("user", aliases=["username"], parents=[opts_parent], help="Username scan across 50+ platforms")
+    p_user = subparsers.add_parser("user", aliases=["username"], parents=[opts_parent], help="Username scan across 75+ platforms")
     p_user.add_argument("target", help="Target username handle")
 
     # 5. 'email' command
@@ -307,7 +307,7 @@ Examples:
 
     # TOP-LEVEL FLAG COMPATIBILITY (e.g. nexusosint -i 1.1.1.1, --dossier target, etc.)
     parser.add_argument("--dossier", help="Execute Master Chained Dossier & Graph on target")
-    parser.add_argument("-u", "--username", help="Target username to investigate across 50+ platforms")
+    parser.add_argument("-u", "--username", help="Target username to investigate across 75+ platforms")
     parser.add_argument("--github", help="Deep GitHub reconnaissance (commit emails & SSH keys)")
     parser.add_argument("-d", "--domain", help="Target domain for DNS, RDAP, subdomains & headers")
     parser.add_argument("-i", "--ip", help="Target IP address or domain for geolocation & ASN")
