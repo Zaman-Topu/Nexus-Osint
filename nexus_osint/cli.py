@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional
 from rich.prompt import Confirm, Prompt
 
 from nexus_osint.case_manager import (
+    clear_system_cache,
     create_target_case_folder,
     print_case_banner,
     save_case_files,
@@ -320,6 +321,7 @@ Examples:
     opts_parent.add_argument("-c", "--concurrency", type=int, default=15, help="Concurrent workers for async tasks (default: 15)")
     opts_parent.add_argument("--no-save", action="store_true", help="Output to terminal only without saving to a folder")
     opts_parent.add_argument("--no-banner", action="store_true", help="Suppress ASCII banner display")
+    opts_parent.add_argument("--clear-cache", "--clean", dest="clear_cache", action="store_true", help="Purge bytecode cache and temporary files before running scan")
 
     # 1. 'all' command
     p_all = subparsers.add_parser("all", aliases=["dossier", "full"], parents=[opts_parent], help="Run Master Chained Dossier & Graph on target")
@@ -404,6 +406,9 @@ Examples:
     # 21. 'menu' command
     subparsers.add_parser("menu", parents=[opts_parent], help="Launch interactive terminal menu")
 
+    # 22. 'clean' / 'cache' command
+    subparsers.add_parser("clean", aliases=["cache", "clear-cache"], parents=[opts_parent], help="Purge system bytecode cache and temporary files")
+
     # TOP-LEVEL FLAG COMPATIBILITY (e.g. nexusosint -i 1.1.1.1, --dossier target, etc.)
     parser.add_argument("--dossier", help="Execute Master Chained Dossier & Graph on target")
     parser.add_argument("-u", "--username", help="Target username to investigate across 75+ platforms")
@@ -430,6 +435,7 @@ Examples:
     parser.add_argument("-c", "--concurrency", type=int, default=15, help="Concurrent workers for async scans (default: 15)")
     parser.add_argument("--no-save", action="store_true", help="Output to terminal only without saving to a folder")
     parser.add_argument("--no-banner", action="store_true", help="Suppress banner display")
+    parser.add_argument("--clear-cache", "--clean", dest="clear_cache", action="store_true", help="Purge bytecode cache and temporary files")
 
     return parser
 
@@ -443,6 +449,12 @@ def main():
     suppress_banner = getattr(args, "no_banner", False)
     if not suppress_banner:
         print_banner()
+
+    # Execute cache purge if requested
+    if getattr(args, "clear_cache", False) or getattr(args, "command", None) in ("clean", "cache", "clear-cache"):
+        clear_system_cache(verbose=True)
+        if getattr(args, "command", None) in ("clean", "cache", "clear-cache"):
+            return
 
     save_folder = not getattr(args, "no_save", False)
     timeout = getattr(args, "timeout", 6.0)

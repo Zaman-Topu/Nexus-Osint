@@ -5,7 +5,7 @@
 ### *Advanced Modular Open-Source Intelligence (OSINT) & Autonomous Threat Intelligence Framework*
 
 [![GitHub Release](https://img.shields.io/badge/release-v2.0.0-0ea5e9?style=for-the-badge&logo=github)](https://github.com/Zaman-Topu/Nexus-Osint)
-[![Tests](https://img.shields.io/badge/tests-69%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-76%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Termux%20(Android)%20%7C%20Linux-f59e0b?style=for-the-badge&logo=linux&logoColor=white)](https://termux.dev)
@@ -304,6 +304,9 @@ nexusosint ssl example.com:8443
 # 📁 Interactive Case Manager & Past Reports Browser
 nexusosint cases
 
+# 🧹 Purge System Bytecode Cache & Stale Temporary Files
+nexusosint clean
+
 # 🖥️ Interactive Full-Screen Terminal Dashboard
 nexusosint menu
 ```
@@ -380,7 +383,7 @@ python3 -m unittest discover tests
 ```
 
 ```text
-Ran 69 tests in 3.553s
+Ran 76 tests in 2.814s
 
 OK
 ```

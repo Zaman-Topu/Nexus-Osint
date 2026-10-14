@@ -430,11 +430,37 @@ def run_master_dossier(
             graph.add_node(v_node, v, color="#dc2626", size=16, shape="diamond")
             graph.add_edge(ip_node, v_node, "CVE")
 
+        # BGP Routing graph node
+        bgp = ip_data.get("bgp_routing")
+        if bgp and bgp.get("prefix") and bgp.get("prefix") != "N/A":
+            bgp_node = f"bgp_{target_seed}"
+            graph.add_node(bgp_node, f"Prefix: {bgp.get('prefix')}", color="#3b82f6", size=14)
+            graph.add_edge(ip_node, bgp_node, "BGP Route")
+
+        # Store diagnostic audit trail
+        if ip_data.get("diagnostic_audit"):
+            dossier["diagnostic_audit"] = ip_data["diagnostic_audit"]
+
+        # Port 443 TLS Certificate Pivot
+        live_p = ip_data.get("live_probes", {})
+        if live_p.get("Port 443 (HTTPS)", {}).get("open"):
+            log_info(f"Phase 3: Active TLS service detected on {target_seed}:443, inspecting SSL certificate & SANs...")
+            ssl_data = analyze_ssl(target_seed, timeout=timeout)
+            dossier["ssl_recon"] = ssl_data
+            if ssl_data.get("connected"):
+                ssl_node = f"ssl_{target_seed}"
+                graph.add_node(ssl_node, f"SSL: {ssl_data.get('subject_cn', 'TLS')[:20]}", color="#14b8a6", size=15)
+                graph.add_edge(ip_node, ssl_node, "TLS Certificate")
+                for san in ssl_data.get("san_domains", [])[:6]:
+                    san_node = f"san_{san}"
+                    graph.add_node(san_node, f"SAN: {san}", color="#06b6d4", size=13)
+                    graph.add_edge(ssl_node, san_node, "SAN Hostname")
+
         # PTR Pivot
         ptr = ip_data.get("reverse_dns")
         if ptr:
             clean_dom = clean_domain(ptr)
-            log_info(f"Phase 3: Pivoting to reverse DNS domain: {clean_dom}...")
+            log_info(f"Phase 4: Pivoting to reverse DNS domain: {clean_dom}...")
             dom_data = analyze_domain(clean_dom, timeout=timeout)
             dossier["domain_recon"] = dom_data
 

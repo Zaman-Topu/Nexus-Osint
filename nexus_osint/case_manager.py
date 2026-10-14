@@ -8,6 +8,7 @@ import glob
 import json
 import os
 import re
+import shutil
 from typing import Any, Dict, List, Optional
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
@@ -16,6 +17,116 @@ from rich.tree import Tree
 from rich import box
 
 from nexus_osint.ui import console, log_info, log_success, log_warning, print_section
+
+
+def clear_system_cache(verbose: bool = False) -> int:
+    """Purge all bytecode __pycache__ folders and .pyc/.pyo files across the repository."""
+    count = 0
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for root, dirs, files in os.walk(project_root):
+        for d in list(dirs):
+            if d == "__pycache__":
+                p = os.path.join(root, d)
+                try:
+                    shutil.rmtree(p, ignore_errors=True)
+                    dirs.remove(d)
+                    count += 1
+                except Exception:
+                    pass
+        for f in files:
+            if f.endswith((".pyc", ".pyo")):
+                try:
+                    os.remove(os.path.join(root, f))
+                    count += 1
+                except Exception:
+                    pass
+    if verbose:
+        log_success(f"Purged {count} cached bytecode and temporary files.")
+    return count
+
+
+def format_ip_summary_lines(ip_data: Dict[str, Any], target: str) -> List[str]:
+    """Generate comprehensive IP intelligence summary lines for text dossiers."""
+    lines = []
+    lines.append(f" • Target IP       : {ip_data.get('ip', target)}")
+    cls = ip_data.get("classification", {})
+    if cls:
+        ver = cls.get("IP Version", "IPv4")
+        scope = "Public / Globally Routable" if cls.get("Is Global / Public") else "Private / Local"
+        lines.append(f" • IP Addressing   : {ver} ({scope})")
+        if cls.get("CIDR Representation"):
+            lines.append(f" • CIDR Scope      : {cls.get('CIDR Representation')}")
+
+    geo = ip_data.get("geolocation", {})
+    if geo and isinstance(geo, dict):
+        lines.append(f" • Geolocation     : {geo.get('City', 'N/A')}, {geo.get('Region / State', 'N/A')}, {geo.get('Country', 'N/A')}")
+        if geo.get("Postal Code") and geo.get("Postal Code") != "N/A":
+            lines.append(f" • Postal Code     : {geo.get('Postal Code')}")
+        lines.append(f" • Network Carrier : {geo.get('ASN', 'N/A')} - {geo.get('ISP', 'N/A')}")
+        if geo.get("Organization") and geo.get("Organization") != "N/A":
+            lines.append(f" • Organization    : {geo.get('Organization')}")
+        if geo.get("Timezone") and geo.get("Timezone") != "N/A":
+            lines.append(f" • Timezone        : {geo.get('Timezone')}")
+        if geo.get("Coordinates") and geo.get("Coordinates") != "N/A":
+            lines.append(f" • Coordinates     : {geo.get('Coordinates')}")
+        if geo.get("Map Location") and geo.get("Map Location") != "N/A":
+            lines.append(f" • Map Location    : {geo.get('Map Location')}")
+
+    ptr = ip_data.get("reverse_dns")
+    lines.append(f" • Reverse DNS     : {ptr if ptr else 'None (No PTR record configured)'}")
+
+    bgp = ip_data.get("bgp_routing", {})
+    if bgp and bgp.get("prefix") and bgp.get("prefix") != "N/A":
+        lines.append(f" • BGP Prefix      : {bgp.get('prefix')} ({bgp.get('asns', 'N/A')})")
+
+    shodan = ip_data.get("shodan_telemetry", {})
+    if shodan:
+        ports = shodan.get("ports", [])
+        vulns = shodan.get("vulns", [])
+        if ports:
+            lines.append(f" • ⚠️ Open Ports    : {', '.join(str(p) for p in ports)}")
+        else:
+            lines.append(f" • Shodan Status   : Clean (0 exposed ports indexed)")
+        if vulns:
+            lines.append(f" • ⚠️ Known CVEs    : {', '.join(vulns)}")
+
+    live = ip_data.get("live_probes", {})
+    if live:
+        for p_name, p_val in live.items():
+            st = p_val.get("status", "N/A")
+            detail = p_val.get("banner") or p_val.get("detail", "N/A")
+            lines.append(f" • {p_name:<16}: {st} ({detail})")
+
+    tor = ip_data.get("tor_anonymity", {})
+    if tor:
+        lines.append(f" • Tor Anonymity   : {tor.get('status', 'CLEAN')} ({tor.get('detail', 'N/A')})")
+
+    return lines
+
+
+def format_diagnostic_audit_summary(audit_list: List[Dict[str, str]]) -> List[str]:
+    """Format diagnostic probe execution status table for summary text."""
+    lines = [
+        "-" * 64,
+        "DIAGNOSTIC HEALTH & PROBE AUDIT MATRIX:",
+    ]
+    for a in audit_list:
+        st = a.get("status", "INFO").upper()
+        probe = a.get("probe", "Probe")
+        detail = a.get("detail", "N/A")
+        if "SUCCESS" in st:
+            badge = "[✔ SUCCESS]"
+        elif "CLEAN" in st:
+            badge = "[ℹ CLEAN  ]"
+        elif "NO_RECORD" in st or "EMPTY" in st:
+            badge = "[⚠ NO_REC ]"
+        elif "CLOSED" in st or "TIMEOUT" in st:
+            badge = "[✖ CLOSED ]"
+        else:
+            badge = "[✖ FAILED ]"
+        lines.append(f" {badge} {probe:<24} : {detail}")
+    return lines
+
 
 
 def get_base_results_dir() -> str:
@@ -66,21 +177,10 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
     ]
 
     mode_lower = scan_mode.lower()
-    if mode_lower in ("ip",) or "geolocation" in data:
-        lines.append(f" • Target IP       : {data.get('ip', target)}")
-        geo = data.get("geolocation", {})
-        if geo:
-            country = geo.get("Country") or geo.get("country") or "N/A"
-            city = geo.get("City") or geo.get("city") or "N/A"
-            region = geo.get("Region / State") or geo.get("region") or "N/A"
-            asn = geo.get("ASN") or geo.get("asn") or "N/A"
-            isp = geo.get("ISP") or geo.get("isp") or "N/A"
-            coords = geo.get("Coordinates") or geo.get("coordinates") or "N/A"
-            lines.append(f" • Country         : {country}")
-            lines.append(f" • City / Region   : {city}, {region}")
-            lines.append(f" • ASN / ISP       : {asn} - {isp}")
-            lines.append(f" • Coordinates     : {coords}")
-            lines.append(f" • Reverse DNS     : {data.get('reverse_dns', geo.get('Reverse DNS', geo.get('reverse_dns', 'N/A')))}")
+    if mode_lower in ("ip",) or ("geolocation" in data and "profiles" not in data):
+        lines.extend(format_ip_summary_lines(data, target))
+        if data.get("diagnostic_audit"):
+            lines.extend(format_diagnostic_audit_summary(data["diagnostic_audit"]))
 
     elif mode_lower in ("user", "username"):
         found = data.get("profiles") or data.get("found_profiles") or []
@@ -379,12 +479,15 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             lines.append(f" • 🖼️ Reverse Image  : {len(r_data.get('engines', []))} visual search engines prepared")
 
         if data.get("ip_recon"):
-            i_data = data["ip_recon"]
-            geo = i_data.get("geolocation", {})
-            if geo and isinstance(geo, dict):
-                country = geo.get("Country", "N/A")
-                city = geo.get("City", "N/A")
-                lines.append(f" • Host Geolocation: {city}, {country}")
+            lines.append("-" * 64)
+            lines.append("IP INFRASTRUCTURE & HOST INTELLIGENCE:")
+            lines.extend(format_ip_summary_lines(data["ip_recon"], target))
+
+        aud = data.get("diagnostic_audit")
+        if not aud and data.get("ip_recon") and isinstance(data["ip_recon"], dict):
+            aud = data["ip_recon"].get("diagnostic_audit")
+        if aud:
+            lines.extend(format_diagnostic_audit_summary(aud))
 
         if data.get("exif_recon"):
             ex_data = data["exif_recon"]
@@ -433,15 +536,58 @@ def generate_markdown_report(target: str, scan_mode: str, data: Dict[str, Any], 
         f"",
     ]
 
+    # 1. Render Diagnostic Probe Execution & Health Audit Matrix at the top
+    audit_list = data.get("diagnostic_audit")
+    if not audit_list and data.get("ip_recon") and isinstance(data["ip_recon"], dict):
+        audit_list = data["ip_recon"].get("diagnostic_audit")
+
+    if audit_list and isinstance(audit_list, list):
+        md_lines.append("### 🩺 Diagnostic Reconnaissance & Health Audit Matrix")
+        md_lines.append("")
+        md_lines.append("| Recon Vector / Probe | Target / Endpoint | Execution Status | Diagnostic Findings |")
+        md_lines.append("| :--- | :--- | :--- | :--- |")
+        for a in audit_list:
+            probe = a.get("probe", "N/A")
+            ep = a.get("target", target)
+            st = a.get("status", "N/A").upper()
+            detail = a.get("detail", "N/A").replace("|", "\\|")
+            if "SUCCESS" in st:
+                badge = f"✅ `{st}`"
+            elif "CLEAN" in st:
+                badge = f"ℹ️ `{st}`"
+            elif "NO_RECORD" in st or "EMPTY" in st:
+                badge = f"⚠️ `{st}`"
+            elif "CLOSED" in st or "TIMEOUT" in st:
+                badge = f"❌ `{st}`"
+            else:
+                badge = f"❌ `{st}`"
+            md_lines.append(f"| **{probe}** | `{ep}` | {badge} | {detail} |")
+        md_lines.append("")
+
     for section_name, section_content in data.items():
-        if not section_content:
+        if not section_content or section_name == "diagnostic_audit":
             continue
         title = section_name.replace("_", " ").title()
         md_lines.append(f"### 🔍 {title}")
         md_lines.append("")
 
         if isinstance(section_content, dict):
+            # Check if this is a simple key-value mapping suitable for a markdown table
+            is_simple_kv = all(not isinstance(val, (dict, list)) for val in section_content.values())
+            if is_simple_kv and section_content:
+                md_lines.append("| Attribute | Intelligence Telemetry |")
+                md_lines.append("| :--- | :--- |")
+                for k, v in section_content.items():
+                    val_str = str(v).replace("|", "\\|")
+                    if ("Map" in k or "Location" in k or "Url" in k) and "http" in val_str:
+                        val_str = f"[{val_str}]({val_str})"
+                    md_lines.append(f"| **{k.title()}** | {val_str} |")
+                md_lines.append("")
+                continue
+
             for k, v in section_content.items():
+                if k == "diagnostic_audit":
+                    continue
                 if isinstance(v, list):
                     md_lines.append(f"- **{k.title()}:**")
                     if v:
@@ -451,7 +597,7 @@ def generate_markdown_report(target: str, scan_mode: str, data: Dict[str, Any], 
                             else:
                                 md_lines.append(f"  - {item}")
                     else:
-                        md_lines.append("  - _None_")
+                        md_lines.append("  - _None / Clean_")
                 elif isinstance(v, dict):
                     md_lines.append(f"- **{k.title()}:**")
                     for subk, subv in v.items():

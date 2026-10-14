@@ -82,10 +82,10 @@ def print_section(title: str, subtitle: Optional[str] = None) -> None:
 
 
 def display_key_value_table(title: str, data: Dict[str, Any], border_style: str = "cyan") -> None:
-    """Display a dictionary as a clean two-column table."""
+    """Display a dictionary as a clean two-column table without truncating values."""
     table = Table(title=title, box=box.ROUNDED, border_style=border_style, show_header=True, header_style="bold magenta")
-    table.add_column("Attribute", style="bold white", width=24)
-    table.add_column("Information", style="green")
+    table.add_column("Attribute", style="bold white", width=24, no_wrap=True)
+    table.add_column("Information", style="green", overflow="fold", no_wrap=False)
 
     for key, value in data.items():
         if value is None:
@@ -102,12 +102,42 @@ def display_key_value_table(title: str, data: Dict[str, Any], border_style: str 
 
 
 def display_list_table(title: str, headers: List[str], rows: List[List[str]], border_style: str = "cyan") -> None:
-    """Display tabular list of rows."""
+    """Display tabular list of rows with full content wrapping."""
     table = Table(title=title, box=box.ROUNDED, border_style=border_style, show_header=True, header_style="bold magenta")
     for header in headers:
-        table.add_column(header)
+        table.add_column(header, overflow="fold", no_wrap=False)
     for row in rows:
         table.add_row(*row)
+    console.print(table)
+
+
+def display_audit_matrix(title: str, audit_records: List[Dict[str, str]]) -> None:
+    """Display an audit table of probes showing success, clean, no-record, or failure status."""
+    table = Table(title=title, box=box.ROUNDED, border_style="bright_blue", show_header=True, header_style="bold magenta")
+    table.add_column("Recon Vector / Probe", style="bold white", width=24)
+    table.add_column("Target / Endpoint", style="cyan", width=22)
+    table.add_column("Status", style="bold", width=18)
+    table.add_column("Diagnostic Details", style="white", overflow="fold", no_wrap=False)
+
+    for rec in audit_records:
+        status = rec.get("status", "UNKNOWN").upper()
+        if "SUCCESS" in status:
+            st_markup = f"[bold green]✔ {status}[/bold green]"
+        elif "CLEAN" in status:
+            st_markup = f"[bold cyan]ℹ {status}[/bold cyan]"
+        elif "NO_RECORD" in status or "EMPTY" in status:
+            st_markup = f"[bold yellow]⚠ {status}[/bold yellow]"
+        elif "CLOSED" in status or "TIMEOUT" in status:
+            st_markup = f"[dim red]✖ {status}[/dim red]"
+        else:
+            st_markup = f"[bold red]✖ {status}[/bold red]"
+
+        table.add_row(
+            rec.get("probe", "N/A"),
+            rec.get("target", "N/A"),
+            st_markup,
+            rec.get("detail", "N/A"),
+        )
     console.print(table)
 
 
@@ -125,3 +155,4 @@ def log_warning(msg: str) -> None:
 
 def log_error(msg: str) -> None:
     console.print(f"[bold red][-][/bold red] {msg}")
+
