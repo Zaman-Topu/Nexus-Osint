@@ -6,6 +6,7 @@ and pivots to Gravatar public profiles and connected social accounts.
 
 import hashlib
 import re
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 import httpx
 
@@ -111,6 +112,90 @@ def check_gravatar_profile(email: str, timeout: float = 6.0) -> Dict[str, Any]:
     return result
 
 
+def format_breach_timeline(date_str: str) -> str:
+    """Format breach timestamp or year into relative days and years ago."""
+    if not date_str or date_str in ("Unknown", "N/A"):
+        return "Unknown"
+    clean_date = str(date_str).strip()
+    now = datetime.now()
+
+    # Try full ISO date YYYY-MM-DD
+    try:
+        dt = datetime.strptime(clean_date[:10], "%Y-%m-%d")
+        days = (now - dt).days
+        if days < 0:
+            return "Recent"
+        if days == 0:
+            return "Today"
+        if days < 30:
+            return f"{days} days ago"
+        if days < 365:
+            months = max(1, days // 30)
+            return f"{days} days ago (~{months} mo)"
+        years = max(1, days // 365)
+        return f"{days} days ago (~{years} yr)"
+    except Exception:
+        pass
+
+    # Try 4-digit year YYYY
+    if re.match(r"^\d{4}$", clean_date):
+        try:
+            year = int(clean_date)
+            diff_years = now.year - year
+            if diff_years <= 0:
+                return "This year"
+            approx_days = diff_years * 365
+            return f"~{approx_days} days ago ({diff_years} yr)"
+        except Exception:
+            pass
+
+    return clean_date
+
+
+def query_email_breaches_xposed(email: str, timeout: float = 8.0) -> Dict[str, Any]:
+    """
+    Query XposedOrNot public threat intelligence for known historical data breach incidents.
+    Returns breached site names, domains, breach dates, relative timeline/age, and exposed data types.
+    """
+    clean_email = email.strip()
+    url = f"https://api.xposedornot.com/v1/breach-analytics?email={clean_email}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NexusOSINT/2.0",
+        "Accept": "application/json",
+    }
+
+    results: List[Dict[str, Any]] = []
+    try:
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            resp = client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                breaches = data.get("ExposedBreaches", {}).get("breaches_details", []) if data.get("ExposedBreaches") else []
+                for b in breaches:
+                    raw_date = str(b.get("xposed_date", ""))
+                    rel_time = format_breach_timeline(raw_date)
+                    data_types = b.get("xposed_data", "").replace(";", ", ")
+                    pw_risk = b.get("password_risk", "unknown")
+                    results.append({
+                        "breach": b.get("breach", "Unknown Service"),
+                        "domain": b.get("domain", ""),
+                        "breach_date": raw_date,
+                        "timeline": rel_time,
+                        "exposed_data": data_types,
+                        "password_risk": pw_risk,
+                        "details": b.get("details", ""),
+                        "records_count": b.get("xposed_records", 0),
+                    })
+    except Exception:
+        pass
+
+    return {
+        "email": clean_email,
+        "total_breaches": len(results),
+        "breaches": results,
+    }
+
+
 def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
     """Execute comprehensive email reconnaissance with mail authentication & infostealer auditing."""
     email = email.strip()
@@ -191,22 +276,54 @@ def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
         )
         stealer_rows = []
         for s in infostealer_info.get("stealers", [])[:5]:
-            logins = ", ".join(s.get("top_logins", [])[:2]) or "N/A"
+            logins = ", ".join(s.get("top_logins", [])[:3]) or "N/A"
+            comp_date = str(s.get("date_compromised", "Unknown"))[:10]
+            timeline = format_breach_timeline(comp_date)
             stealer_rows.append([
                 s.get("computer_name", "Unknown"),
                 s.get("operating_system", "Unknown"),
-                s.get("date_compromised", "Unknown")[:10],
+                comp_date,
+                timeline,
                 logins,
             ])
         if stealer_rows:
             display_list_table(
                 "Infostealer Malware Compromises (Hudson Rock)",
-                ["Host Machine", "OS", "Compromised Date", "Sample Leaked Logins"],
+                ["Host Machine", "OS", "Compromised Date", "Timeline / Days Ago", "Target Services Compromised"],
                 stealer_rows,
                 border_style="red",
             )
     else:
         log_success("No infostealer malware compromises reported for this email address.")
+
+    # Historical Data Breach Incidents (XposedOrNot)
+    log_info("Querying XposedOrNot for historical data breach incidents and leak timelines...")
+    breach_info = query_email_breaches_xposed(email, timeout=timeout)
+
+    if breach_info["total_breaches"] > 0:
+        log_warning(
+            f"CRITICAL LEAK: Email identified in [bold red]{breach_info['total_breaches']}[/bold red] "
+            f"historical data breach incident(s)!"
+        )
+        breach_headers = ["Breached Site / Service", "Domain", "Breach Date", "Timeline / Days Ago", "Exposed Data Categories"]
+        breach_rows = [
+            [
+                b["breach"][:25],
+                b["domain"][:22] or "N/A",
+                b["breach_date"],
+                b["timeline"],
+                b["exposed_data"][:35] + ("..." if len(b["exposed_data"]) > 35 else ""),
+            ]
+            for b in breach_info["breaches"][:15]
+        ]
+        display_list_table(
+            f"Historical Data Breaches ({email})",
+            breach_headers,
+            breach_rows,
+            border_style="red",
+        )
+    else:
+        log_success("No public historical data breach records found for this email address.")
 
     return {
         "target": email,
@@ -218,4 +335,5 @@ def analyze_email(email: str, timeout: float = 6.0) -> Dict[str, Any]:
         "email_security": email_sec,
         "gravatar": gravatar_info,
         "infostealer": infostealer_info,
+        "breach_history": breach_info,
     }

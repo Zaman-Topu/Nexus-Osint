@@ -157,6 +157,15 @@ def run_master_dossier(
             graph.add_node(stealer_node, f"Infostealer: {st_count} Infection(s)", color="#dc2626", size=20, shape="diamond")
             graph.add_edge(email_node, stealer_node, "Malware Breach")
 
+        # Historical Breach Incidents nodes
+        breaches = email_data.get("breach_history", {}).get("breaches", [])
+        if breaches:
+            for b in breaches[:6]:
+                b_name = b.get("breach") or "Breach"
+                b_node = f"breach_{target_seed}_{b_name}"
+                graph.add_node(b_node, f"Breached: {b_name} ({b.get('breach_date')})", color="#ef4444", size=14, shape="triangle")
+                graph.add_edge(email_node, b_node, f"Leaked ({b.get('timeline')})")
+
         # Extract handles & domain
         user_part, _, domain_part = target_seed.partition("@")
         discovered_usernames = {user_part}

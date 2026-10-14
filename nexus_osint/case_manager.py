@@ -144,6 +144,13 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
             lines.append(f" • Spoofability    : {data['email_security'].get('posture', 'N/A')}")
         if data.get("infostealer") and data["infostealer"].get("compromised"):
             lines.append(f" • ⚠️ Infostealers  : Compromised on {data['infostealer'].get('total_stealers', 0)} device(s)!")
+        breaches = data.get("breach_history", {}).get("breaches", [])
+        if breaches:
+            lines.append(f" • 🚨 Public Breaches : {len(breaches)} known breach incident(s) detected!")
+            for b in breaches[:5]:
+                site_lbl = b.get("breach") or "Unknown"
+                dom_lbl = f" ({b.get('domain')})" if b.get("domain") else ""
+                lines.append(f"    - [{site_lbl}{dom_lbl}]: {b.get('breach_date')} ({b.get('timeline')}) - Exposed: {b.get('exposed_data')[:45]}")
 
     elif mode_lower == "phone":
         details = data.get("details", {})
@@ -264,6 +271,9 @@ def generate_summary_text(target: str, scan_mode: str, data: Dict[str, Any], cas
                 lines.append(f" • Email Spoofing  : {e_data['email_security'].get('posture', 'N/A')}")
             if e_data.get("infostealer") and e_data["infostealer"].get("compromised"):
                 lines.append(f" • ⚠️ Infostealers  : Compromised on {e_data['infostealer'].get('total_stealers', 0)} device(s)!")
+            if e_data.get("breach_history") and e_data["breach_history"].get("total_breaches"):
+                tot_b = e_data["breach_history"]["total_breaches"]
+                lines.append(f" • 🚨 Public Breaches : {tot_b} known service breach incident(s)!")
             if e_data.get("gravatar", {}).get("profile_found"):
                 lines.append(f" • Gravatar Profile: {e_data['gravatar'].get('profile_url', 'Found')}")
 

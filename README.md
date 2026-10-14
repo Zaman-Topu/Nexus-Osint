@@ -5,7 +5,7 @@
 ### *Advanced Modular Open-Source Intelligence (OSINT) & Autonomous Threat Intelligence Framework*
 
 [![GitHub Release](https://img.shields.io/badge/release-v2.0.0-0ea5e9?style=for-the-badge&logo=github)](https://github.com/Zaman-Topu/Nexus-Osint)
-[![Tests](https://img.shields.io/badge/tests-47%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-49%20passed-10b981?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Termux%20(Android)%20%7C%20Linux-f59e0b?style=for-the-badge&logo=linux&logoColor=white)](https://termux.dev)

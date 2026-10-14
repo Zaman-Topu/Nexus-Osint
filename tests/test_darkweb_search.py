@@ -235,5 +235,70 @@ class TestSearchRecon(unittest.TestCase):
         self.assertGreaterEqual(len(res["osint_dorks"]), 5)
 
 
+class TestBreachHistoryRecon(unittest.TestCase):
+    """Test Historical Breach Incidents, site detection, and relative age calculation."""
+
+    def test_format_breach_timeline(self):
+        from nexus_osint.modules.email_recon import format_breach_timeline
+
+        self.assertEqual(format_breach_timeline(""), "Unknown")
+        self.assertEqual(format_breach_timeline(None), "Unknown")
+
+        # Past full date
+        past_date = "2020-01-01"
+        res = format_breach_timeline(past_date)
+        self.assertIn("days ago", res)
+
+        # 4-digit year
+        year_res = format_breach_timeline("2016")
+        self.assertIn("days ago", year_res)
+        self.assertIn("yr", year_res)
+
+    @patch("nexus_osint.modules.email_recon.httpx.Client")
+    def test_query_email_breaches_xposed(self, mock_client_cls):
+        from nexus_osint.modules.email_recon import query_email_breaches_xposed
+
+        mock_client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "ExposedBreaches": {
+                "breaches_details": [
+                    {
+                        "breach": "LinkedIn",
+                        "domain": "linkedin.com",
+                        "xposed_date": "2016",
+                        "xposed_data": "Email addresses;Passwords;Names",
+                        "password_risk": "plaintext",
+                        "details": "LinkedIn breach in 2016.",
+                        "xposed_records": 164000000,
+                    },
+                    {
+                        "breach": "Canva",
+                        "domain": "canva.com",
+                        "xposed_date": "2019-05-24",
+                        "xposed_data": "Email addresses;Passwords",
+                        "password_risk": "easytocrack",
+                        "details": "Canva breach in 2019.",
+                        "xposed_records": 137000000,
+                    },
+                ]
+            }
+        }
+        mock_client.get.return_value = mock_resp
+        mock_client_cls.return_value.__enter__.return_value = mock_client
+
+        res = query_email_breaches_xposed("victim@example.com")
+        self.assertEqual(res["total_breaches"], 2)
+        self.assertEqual(res["breaches"][0]["breach"], "LinkedIn")
+        self.assertEqual(res["breaches"][0]["domain"], "linkedin.com")
+        self.assertIn("days ago", res["breaches"][0]["timeline"])
+        self.assertIn("Passwords", res["breaches"][0]["exposed_data"])
+
+        self.assertEqual(res["breaches"][1]["breach"], "Canva")
+        self.assertEqual(res["breaches"][1]["domain"], "canva.com")
+        self.assertIn("days ago", res["breaches"][1]["timeline"])
+
+
 if __name__ == "__main__":
     unittest.main()
